@@ -1,0 +1,39 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+   
+   <p:dialog id="dlg_tabB1" width="600"  showEffect="fade" responsive="true"
+              dynamic="true" cache="false" visible="#{dynTab.isComponentVisibleById(component.id)}"
+             header="Product details" position="center">
+      <!--        
+      <p:ajax  event="close"  listener="#{dynTab.handleDlgClose}"/>
+      -->
+      <ui:include src="/WEB-INF/include/proizvodi/dialog_content.xhtml" />
+     <!-- footer za Sacuvaj-odustani dugmice: -->
+    <f:facet name="footer">
+         <p:commandButton
+            value="Save"
+            icon="pi pi-check"
+            process="#{dynTab.tabSubviewClientId}:dlg_tabB1 @this"
+            actionListener="#{dynTab.cdiBean.saveProduct}" 
+            update="mainForm:msgs #{dynTab.tabSubviewClientId}:create_tabB1 @(:button[id$='update_tabB1'])"/>
+         <p:commandButton
+            value="Cancel"
+            icon="pi pi-times"
+            class="secondary-button"
+            immediate="true"
+            process="@this"
+            update="#{dynTab.tabSubviewClientId}:dlg_tabB1 #{dynTab.tabSubviewClientId}:create_tabB1 @(:button[id$='update_tabB1'])">
+            <f:setPropertyActionListener
+               target="#{dynTab.dynTabVisibleMap.dlg_tabB1}"
+               value="#{false}"
+            />
+         </p:commandButton>
+      </f:facet>  
+   </p:dialog> 
+   
+
+   
+</ui:composition>

@@ -1,0 +1,69 @@
+<ui:composition
+   xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+
+           <p:commandButton id="cloneBtn" value="Clone this tab"  process="@this" rendered="#{empty cdiBean.parameters}" 
+                            action="#{dynTab.cdiBean.cloneTab}"/>
+       
+        <p:dataTable id="tabB1"  var="product" value="#{dynTab.cdiBean.products}"
+            reflow="true" styleClass="ui-datatable-striped ui-datatable-sm ui-datatable-gridlines" 
+            selectionMode="multiple" selection="#{dynTab.cdiBean.selectedProducts}"
+            liveResize="true" resizableColumns="true"
+            rowKey="#{product.code}" paginator="true" rows="10"  paginatorPosition="bottom">
+             
+            <p:ajax event="rowSelect" />
+            <p:ajax event="rowUnselect" />
+            <p:ajax event="toggleSelect" />
+            <p:ajax event="rowSelectCheckbox" />
+            <p:ajax event="rowUnselectCheckbox" />
+            
+            <p:column selectionMode="multiple" exportable="false" style="width:3rem"/>
+            
+              <p:column id="dynTabsEventCol" rendered="#{cdiBean.parameters.kategorija eq 'vip'}"
+               style="text-align: center; width:230px" >
+               
+               <p:commandButton
+                  id="sendMToAppModuleBtn"
+                  icon="pi pi-send"
+                  process="@this"
+                  styleClass="edit-button rounded-button ui-button-success"
+                  action="#{cdiBean.notifyProizvodChanges(product)}">
+                <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="sendMToAppModuleBtn"
+                          value="Send Message To Product module"
+                          position="bottom" />
+               
+               </p:commandButton>
+            </p:column> 
+
+            <p:column headerText="Code" sortBy="#{product.code}" filterBy="#{product.code}">
+                <h:outputText value="#{product.code}" />
+            </p:column>
+            <p:column headerText="Name" sortBy="#{product.name}" filterBy="#{product.name}">
+                 <h:outputText   rendered="#{dynTab.cdiBean.parameters.kategorija eq 'vip'}"  
+                                  value="#{product.name}"/>
+            
+                <p:commandLink id="sendMsgDemo"
+                                 rendered="#{dynTab.cdiBean.parameters.kategorija ne 'vip'}"  
+                                 process="@this" immediate="true"  value="#{product.name}"
+                               action="#{dynTab.cdiBean.launchNewTab(product)}"/>
+                <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="sendMsgDemo"
+                          value="Filter only this product in new tab"
+                          position="bottom" />
+            </p:column>
+            <p:column headerText="Price" sortBy="#{product.price}">
+                <h:outputText value="#{product.price}" style="font-weight: 700">
+                    <f:convertNumber currencySymbol="$" type="currency" />
+                </h:outputText>
+            </p:column>
+            <p:column headerText="Category" sortBy="#{product.category}" filterBy="#{product.category}">
+                <h:outputText  value="#{product.category}"/>
+            </p:column>
+            <p:column headerText="Reviews" sortBy="#{product.rating}">
+                <p:rating value="#{product.rating}" readonly="true" />
+            </p:column>
+
+        </p:dataTable>
+</ui:composition>

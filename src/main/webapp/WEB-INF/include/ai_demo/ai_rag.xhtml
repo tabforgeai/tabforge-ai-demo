@@ -1,0 +1,58 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+   
+   <p:outputPanel >
+            <h5>Upload Documents (up to 3, pdf, docx, txt) to enrich AI knowledge</h5>
+            <p>Then let the AI answer questions based on chosen documents 
+             </p>
+        </p:outputPanel>
+
+     <p:fileUpload id="ragFileUpload" skinSimple="true"  label="Choose ..."
+                chooseIcon="pi pi-upload"
+                class="info-button"
+                dragDropSupport="true"
+                mode="simple"
+                accept=".pdf,.docx,.txt"
+                multiple="true" 
+                fileLimit="3"
+                auto="true"
+                listener="#{dynTab.cdiBean.handleRAGFileUpload}"
+                update="ragPanel"/>
+                
+     <!-- AI code review response: -->  
+     
+     <p:outputPanel id="ragPanel" widgetVar="ragPanel" 
+                   style="height:150px; overflow:auto; border:1px solid #ccc; padding:10px; width:100%;">
+           <p:outputLabel value="#{dynTab.cdiBean.ragFeedback}" escape="false" style="display:block; margin-bottom:8px;" />
+    </p:outputPanel>
+    
+    
+    <p:outputPanel style="width:100%;">
+        <p:inputTextarea id="ragInput" value="#{dynTab.cdiBean.ragRequestMsg}" rows="3" 
+                         autoResize="true" style="width:100%;"/>
+        <p:spacer height="5"/>
+        <p:commandButton action="#{dynTab.cdiBean.askPolicy}"
+                         update="ragPanel, ragInput" 
+                         process="@this ragInput" 
+                         icon="pi pi-send"
+                         class="secondary-button"
+                         style="width:100%;"
+                         oncomplete="scrollRagToBottom();"
+                         />
+    </p:outputPanel>
+    
+    <h:outputScript>
+function scrollRagToBottom() {
+    var container = jQuery('[id$="ragPanel"]').first(); 
+    if (container.length > 0) {
+        container.animate({
+            scrollTop: container[0].scrollHeight
+        }, 500);
+    }
+}
+</h:outputScript>
+   
+</ui:composition>

@@ -1,0 +1,36 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+   
+      <p:outputPanel >
+            <h5>Ask support</h5>
+            <p>
+               Ask support... (Show me all orders for john@example.com, Cancel my order #12345, Add a blue t-shirt to my cart, What's in my cart?) 
+            </p>
+      </p:outputPanel>
+   
+
+    <p:outputPanel id="assPanel" widgetVar="assPanel" 
+                   style="height:150px; overflow:auto; border:1px solid #ccc; padding:10px; width:100%;">
+         <p:outputLabel value="#{dynTab.cdiBean.supportFeedback}" escape="false" style="display:block; margin-bottom:8px;" />                   
+    </p:outputPanel>
+
+    <p:spacer height="10"/>
+
+    <p:outputPanel style="width:100%;">
+        <p:inputTextarea id="supportInput" value="#{dynTab.cdiBean.supportRequestMsg}" rows="3" 
+                         autoResize="true" style="width:100%;"/>
+        <p:spacer height="5"/>
+        <p:commandButton action="#{dynTab.cdiBean.askSupport}"
+                         update="assPanel, supportInput" 
+                         process="@this supportInput" 
+                         icon="pi pi-send"
+                         class="secondary-button"
+                         style="width:100%;"
+                         oncomplete="scrollChatToBottom();"
+                         />
+    </p:outputPanel>
+
+ </ui:composition>

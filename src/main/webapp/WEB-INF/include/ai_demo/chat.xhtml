@@ -1,0 +1,42 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+   
+    <!-- Deo za prikaz odgovora -->
+    <p:outputPanel id="chatPanel" widgetVar="chatScroll" 
+                   style="height:300px; overflow:auto; border:1px solid #ccc; padding:10px; width:100%;">
+        <ui:repeat value="#{dynTab.cdiBean.messages}" var="msg">
+            <p:outputLabel value="#{msg}" escape="false" style="display:block; margin-bottom:8px;" />
+        </ui:repeat>
+    </p:outputPanel>
+
+    <p:spacer height="10"/>
+
+    <!-- Container za unos -->
+    <p:outputPanel style="width:100%;">
+        <p:inputTextarea id="userInput" value="#{dynTab.cdiBean.userMessage}" rows="3" 
+                         autoResize="true" style="width:100%;"/>
+        <p:spacer height="5"/>
+        <p:commandButton action="#{dynTab.cdiBean.sendMessage}"
+                         update="chatPanel, userInput" 
+                         process="@this userInput" 
+                         icon="pi pi-send"
+                         class="secondary-button"
+                         style="width:100%;"
+                         oncomplete="scrollChatToBottom();"
+                         />
+    </p:outputPanel>
+
+<h:outputScript>
+function scrollChatToBottom() {
+    var container = jQuery('[id$="chatPanel"]').first(); 
+    if (container.length > 0) {
+        container.animate({
+            scrollTop: container[0].scrollHeight
+        }, 500);
+    }
+}
+</h:outputScript>
+</ui:composition>   

@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:f="http://java.sun.com/jsf/core"
+       xmlns:p="http://primefaces.org/ui" 
+       template="/dyntabs/dynTabLayout.xhtml"
+      xmlns:h="http://java.sun.com/jsf/html">
+      
+   <ui:define name="mainContent">
+           <ui:include src="/WEB-INF/include/proizvodi/dialog_content.xhtml" />
+           <p:toolbar>
+               <p:toolbarGroup align="right">
+                  <p:commandButton
+                        value="Save" id="theSaveBtn"
+                        icon="pi pi-check"
+                        process="#{dynTab.tabSubviewClientId}:manage-product-content @this"
+                        action="#{dynTab.cdiBean.closeAndReturnValueToCaller(dynTab.cdiBean.productData)}" 
+                        />
+                   <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="theSaveBtn"
+                          value="Close And Return Value to Caller"
+                          position="bottom" />
+                        
+                 <p:commandButton id="theCancelBtn"
+                        value="Cancel"
+                        icon="pi pi-times"
+                        class="secondary-button"
+                        immediate="true"
+                        process="@this"
+                        action="#{dynTab.cdiBean.closeAndSelectCaller}">
+                  </p:commandButton>
+                  <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="theCancelBtn"
+                          value="Close And Select Caller"
+                          position="bottom" />
+                  
+               </p:toolbarGroup>
+           </p:toolbar>
+           
+   </ui:define>
+</ui:composition>

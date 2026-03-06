@@ -1,0 +1,61 @@
+<ui:composition
+   xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+     You can combine tools (including EJB beans) AND documents on the same assistant.<br/>
+     This allows the app user to instruct the AI ​​model through natural language what to do, as well as ask questions about the content of their internal documents.<br/>
+     
+   <p:outputPanel >
+            <h5>Upload Document (pdf, docx, txt) to enrich AI knowledge</h5>
+            <p>Then let the AI answer questions based on chosen documents AND ask about product price 
+             </p>
+        </p:outputPanel>
+
+     <p:fileUpload id="combinedRagFileUpload" skinSimple="true"  label="Choose ..."
+                chooseIcon="pi pi-upload"
+                class="info-button"
+                dragDropSupport="true"
+                mode="simple"
+                accept=".pdf,.docx,.txt"
+                multiple="false" 
+                auto="true"
+                listener="#{dynTab.cdiBean.handleCombinedRAGFileUpload}"
+                update="combinedRagPanel"/>
+                
+     <!-- AI code review response: -->  
+     
+     <p:outputPanel id="combinedRagPanel" widgetVar="combinedRagPanel" 
+                   style="height:150px; overflow:auto; border:1px solid #ccc; padding:10px; width:100%;">
+           <p:outputLabel value="#{dynTab.cdiBean.combinedRagFeedback}" escape="false" style="display:block; margin-bottom:8px;" />
+    </p:outputPanel>
+    
+    
+    <p:outputPanel style="width:100%;">
+        <p:inputTextarea id="combinedRagInput" value="#{dynTab.cdiBean.combinedRagRequestMsg}" rows="3" 
+                         autoResize="true" style="width:100%;"/>
+        <p:spacer height="5"/>
+        <p:commandButton action="#{dynTab.cdiBean.askSalesBot}"
+                         update="combinedRagPanel, combinedRagInput" 
+                         process="@this combinedRagInput" 
+                         icon="pi pi-send"
+                         class="secondary-button"
+                         style="width:100%;"
+                         oncomplete="scrollCombinedRagToBottom();"
+                         />
+    </p:outputPanel>
+    
+    <h:outputScript>
+function scrollCombinedRagToBottom() {
+    var container = jQuery('[id$="combinedRagPanel"]').first(); 
+    if (container.length > 0) {
+        container.animate({
+            scrollTop: container[0].scrollHeight
+        }, 500);
+    }
+}
+</h:outputScript>     
+     
+     
+</ui:composition>

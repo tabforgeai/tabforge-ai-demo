@@ -1,0 +1,17 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+   
+   <p:tabView  id="ai_assistant" dynamic="true" cache="false">
+         <p:tab title="Code Review">
+             <ui:include src="/WEB-INF/include/ai_demo/code_review.xhtml" />
+         </p:tab>
+
+         <p:tab title="Assistant with Tools">
+              <ui:include src="/WEB-INF/include/ai_demo/assistant_with_tools.xhtml" />
+         </p:tab>
+   </p:tabView>      
+   
+</ui:composition>

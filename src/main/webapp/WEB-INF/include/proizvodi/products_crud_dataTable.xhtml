@@ -1,0 +1,141 @@
+<ui:composition
+   xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+    
+       <p:toolbar>
+            <p:toolbarGroup align="left">
+                <p:commandButton value="New" icon="pi pi-plus" id="create_tabB1" process="@this" actionListener="#{dynTab.cdiBean.openNew}"
+                                 disabled="#{dynTab.isComponentVisibleById('dlg_tabB1')}" 
+                                 update="#{dynTab.tabSubviewClientId}:dlg_tabB1 @(:button[id$='update_tabB1']) @this"
+                               styleClass="ui-button-success" style="margin-right: .5rem">
+                            <!-- show crud dialog: -->   
+                <f:setPropertyActionListener target="#{dynTab.dynTabVisibleMap.dlg_tabB1}" value="#{true}" />                               
+                <p:resetInput target="#{dynTab.tabSubviewClientId}:dlg_tabB1" />
+                <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="create_tabB1"
+                          value="Create New In Dialog"
+                          position="bottom" />
+                </p:commandButton>
+                
+                <!-- create new product in dynamic tab: -->
+                <p:commandButton value="New In DynTab" icon="pi pi-plus"  process="@this" actionListener="#{dynTab.cdiBean.launchNewProductDynTab}"
+                               styleClass="ui-button-success" style="margin-right: .5rem">
+                <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="create_tabB1"
+                          value="Create New Product In Dynamic Tab"
+                          position="bottom" />
+                </p:commandButton>
+                
+                <p:commandButton id="sendMessageToAllApplicationModule"
+                                 icon="pi pi-send"
+                                 class="secondary-button"
+                                 immediate="true"
+                                 process="@this"
+                                 action="#{dynTab.cdiBean.sendMessageToAllAppModules('Hey, there!')}">
+                </p:commandButton> 
+                <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="sendMessageToAllApplicationModule"
+                          value="Send Message To All App Modules"
+                          position="bottom" />
+                
+                
+            </p:toolbarGroup>
+        </p:toolbar>
+       
+        <p:dataTable id="tabB1"  var="product" value="#{dynTab.cdiBean.products}"
+            reflow="true" styleClass="ui-datatable-striped ui-datatable-sm ui-datatable-gridlines" 
+            selectionMode="single" selection="#{dynTab.cdiBean.selectedProduct}"
+            liveResize="true" resizableColumns="true"
+            rowKey="#{product.code}" paginator="true" rows="10"  paginatorPosition="bottom">
+             
+            <p:ajax event="rowSelect" />
+            <p:ajax event="rowUnselect" />
+            <p:ajax event="toggleSelect" />
+            <p:ajax event="rowSelectCheckbox" />
+            <p:ajax event="rowUnselectCheckbox" />
+            
+            
+              <p:column id="cmdCol"
+               style="text-align: center; width:170px" >
+               <p:commandButton
+                  id="update_tabB1"
+                  icon="pi pi-pencil"
+                  process="@this"
+                  update="#{dynTab.tabSubviewClientId}:dlg_tabB1 @(:button[id$='update_tabB1'])  #{dynTab.tabSubviewClientId}:create_tabB1" 
+                  disabled="#{dynTab.isComponentVisibleById('dlg_tabB1')}"
+                  styleClass="edit-button rounded-button ui-button-success">
+                  
+                      <!-- prepare current product data to be shown in the CRUD dialog: -->
+                     <f:setPropertyActionListener value="#{product}" target="#{dynTab.cdiBean.productData}" />
+                     <p:resetInput target="#{dynTab.tabSubviewClientId}:dlg_tabB1" />
+                     <!-- make CRUD dialog to be visible: -->
+                     <f:setPropertyActionListener  target="#{dynTab.dynTabVisibleMap.dlg_tabB1}" value="#{true}"/> 
+                <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="update_tabB1"
+                          value="Update Record In Dialog"
+                          position="bottom" />
+               </p:commandButton>
+               
+               <p:commandButton
+                  id="update_inTab"
+                  icon="pi pi-user-edit"
+                  action="#{dynTab.cdiBean.launchProductEditDynTab(product)}"
+                  process="@this"
+                  styleClass="edit-button rounded-button ui-button-success">
+                    <p:tooltip hideEvent="mouseleave click" showDelay="200"  for="update_inTab"
+                              value="Update Record In Dynamic Tab"
+                              position="bottom" />
+               </p:commandButton>
+               
+              <p:commandButton
+                  id="delete_tabB1"
+                  process="@this"
+                  class="ui-button-danger rounded-button"
+                  icon="pi pi-trash"
+                  action="#{dynTab.cdiBean.deleteProduct}"
+               >
+                  <f:setPropertyActionListener
+                     value="#{product}"
+                     target="#{dynTab.cdiBean.selectedProduct}"/>
+                  <p:confirm
+                     type="popup"
+                     header="Delete product"
+                     message="Are you sure?"
+                     icon="pi pi-exclamation-triangle"/>
+               </p:commandButton>
+               <p:confirmPopup global="true">
+                  <p:commandButton
+                     value="No"
+                     type="button"
+                     styleClass="ui-confirm-popup-no ui-button-flat"
+                  />
+                  <p:commandButton
+                     value="Yes"
+                     type="button"
+                     styleClass="ui-confirm-popup-yes"
+                  />
+               </p:confirmPopup>                
+               
+               
+            </p:column> 
+
+            <p:column headerText="Code" sortBy="#{product.code}" filterBy="#{product.code}">
+                <h:outputText value="#{product.code}" />
+            </p:column>
+            <p:column headerText="Name" sortBy="#{product.name}" filterBy="#{product.name}">
+                 <h:outputText value="#{product.name}"/>
+            </p:column>
+            <p:column headerText="Price" sortBy="#{product.price}">
+                <h:outputText value="#{product.price}" style="font-weight: 700">
+                    <f:convertNumber currencySymbol="$" type="currency" />
+                </h:outputText>
+            </p:column>
+            <p:column headerText="Category" sortBy="#{product.category}" filterBy="#{product.category}">
+                <h:outputText value="#{product.category}"/>
+            </p:column>
+            
+            <p:column headerText="Reviews" sortBy="#{product.rating}">
+                <p:rating value="#{product.rating}" readonly="true" />
+            </p:column>
+
+        </p:dataTable>
+</ui:composition>

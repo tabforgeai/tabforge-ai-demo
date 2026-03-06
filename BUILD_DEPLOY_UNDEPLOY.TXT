@@ -1,0 +1,16 @@
+- BUILD:
+  mvn clean package
+
+-DEPLOY (On GlassFish 8):
+ c:\GlassFish_8\bin\asadmin deploy --name tabforge_ai_demo   c:\Eclipse2025_Workspace\tabforge-ai-demo\target\tabforge_ai_demo_1_0.war
+
+-UNDEPLOY:
+  c:\GlassFish_8\bin\asadmin undeploy tabforge_ai_demo
+
+-REDEPLOY:
+c:\GlassFish_8\bin\asadmin redeploy --name tabforge_ai_demo  c:\Eclipse2025_Workspace\tabforge-ai-demo\target\tabforge_ai_demo_1_0.war
+
+-ACCESS:
+localhost:8080/tabforge_ai_demo_1_0/login.xhtml
+  admin@mail.com/ADMIN123
+  user@mail.com/USER123

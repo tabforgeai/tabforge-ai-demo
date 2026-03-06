@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:f="http://java.sun.com/jsf/core"
+       xmlns:p="http://primefaces.org/ui" 
+       template="/dyntabs/dynTabLayout.xhtml"
+      xmlns:h="http://java.sun.com/jsf/html">
+      
+<ui:define name="mainContent">
+   <p:outputPanel >
+            <h4>Add a Groq root-CA certificate to the App server truststore, before trying this!</h4>
+            <p>Get certificate via Groq API:</p>
+	       
+	        <p> keytool -printcert -rfc -sslserver api.groq.com:443 > c:\temp\groq.pem</p>
+            <p>
+              - then split  it into 3 .pem files (BEGIN-END) -then add only 2. and 3.
+              You can get App server truststore via: System.getProperty("javax.net.ssl.trustStore")
+            </p>
+   </p:outputPanel>
+
+
+     <p:accordionPanel >
+       <p:tab title="Chat demo">
+          <ui:include src="/WEB-INF/include/ai_demo/chat.xhtml" />
+       </p:tab>
+       
+       <p:tab title="AI Assistant Demo">
+          <ui:include src="/WEB-INF/include/ai_demo/ai_assistant.xhtml" />
+       </p:tab>
+       
+       <p:tab title="Document-Powered AI (RAG) Demo">
+          <ui:include src="/WEB-INF/include/ai_demo/ai_rag.xhtml" />
+       </p:tab>
+       
+       <p:tab title="Combined - Tools + RAG Demo">
+          <ui:include src="/WEB-INF/include/ai_demo/tools_rag.xhtml" />
+       </p:tab>
+       
+     </p:accordionPanel>
+</ui:define>
+</ui:composition>

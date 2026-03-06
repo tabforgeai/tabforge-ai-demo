@@ -1,0 +1,32 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+      
+      <!-- upload some Java file to be reviewed: -->
+      
+       <h5>Upload Java file</h5>
+       <p>
+           Choose Java file for review
+       </p>
+      <p:fileUpload id="javaFileUpload" skinSimple="true"  label="Choose Java file for review"
+                chooseIcon="pi pi-upload"
+                class="info-button"
+                dragDropSupport="true"
+                mode="simple"
+                accept=".java"
+                fileLimit="1"
+                auto="true"
+                listener="#{dynTab.cdiBean.handleFileUpload}"
+                update="reviewPanel"/>
+                
+     <!-- AI code review response: -->
+     
+     <p:outputPanel id="reviewPanel" widgetVar="reviewScroll" 
+                   style="height:300px; overflow:auto; border:1px solid #ccc; padding:10px; width:100%;">
+           <p:outputLabel value="#{dynTab.cdiBean.reviewFeedback}" escape="false" style="display:block; margin-bottom:8px;" />
+    </p:outputPanel>
+                
+              
+</ui:composition>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<ui:composition 
+        xmlns="http://www.w3.org/1999/xhtml"
+        xmlns:h="http://xmlns.jcp.org/jsf/html"
+        xmlns:f="http://xmlns.jcp.org/jsf/core"
+        xmlns:ui="http://xmlns.jcp.org/jsf/facelets"
+        xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+    <title>Demo App</title>
+
+    <style>
+       .topbar-left form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .topbar-left .p-menubar {
+        border: none;
+        background: transparent;
+    }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* TOPBAR */
+        .topbar {
+            height: 50px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+        }
+
+        /* BODY */
+        .layout-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        /* padding-top: 20px; */
+        .sidebar {
+            width: 250px;
+            background: #34495e;
+            color: white;
+            transition: width 0.3s ease;
+            overflow: auto;
+             
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* CONTENT */
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            background: #ecf0f1;
+        }
+        
+.card-grid .p-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-grid .p-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-grid .p-card-content {
+    flex: 1;
+}
+        
+        
+    </style>
+
+</h:head>
+
+<h:body>
+
+<div class="layout-wrapper">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+
+        <div class="topbar-left">
+         <h:form id="topMenuForm">
+            <!-- Toggle dugme -->
+            <p:commandButton icon="pi pi-bars"
+                             onclick="toggleSidebar(); return false;"
+                             styleClass="p-button-text p-button-plain" />
+
+          </h:form>  
+        </div>
+
+        <!-- Desni meni (logout) -->
+        <div class="topbar-right">
+           <h:form id="righMenuForm">
+            <p:menuButton value="User">
+                <p:menuitem  value="Close Current Tab" actionListener="#{dynTabManager.removeCurrentTab}" process="@this" immediate="true"/>
+                <p:menuitem immediate="true" value="Close All Tabs" actionListener="#{dynTabManager.closeAllActiveTabs}" process="@this"/>  
+                <p:menuitem value="logout" process="@this" immediate="true"  action="#{logoutBacking.submit}"/>
+            </p:menuButton>
+           </h:form> 
+        </div>
+
+    </div>
+
+    <!-- BODY -->
+    <div class="layout-body">
+
+        <!-- SIDEBAR -->
+        <div id="sidebar" class="sidebar">
+        <h:form id="sideMenuForm">
+            <p:menu style="width:100%">
+                <p:submenu label="Home">
+                    <p:menuitem  value="Home" icon="pi pi-home" process="@this" immediate="true" action="uishell:Home"  />
+                </p:submenu>
+
+                <p:submenu label="Administration">
+                    <ui:include src="/WEB-INF/templates/simple_template/menu_items.xhtml"/>                
+                </p:submenu>
+            </p:menu>
+        </h:form>            
+        </div>
+
+        <!-- CONTENT -->
+        <div class="content">
+            <ui:include src="/dyntabs/mainForm.xhtml" />
+        </div>
+
+    </div>
+
+</div>
+
+<script type="text/javascript">
+    function toggleSidebar() {
+        var sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+    }
+</script>
+
+</h:body>
+</ui:composition>

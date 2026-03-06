@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:f="http://java.sun.com/jsf/core"
+       xmlns:p="http://primefaces.org/ui" 
+       template="/dyntabs/dynTabLayout.xhtml"
+      xmlns:h="http://java.sun.com/jsf/html">
+      
+<ui:define name="mainContent">
+ <p:graphicImage name="TabForge_AI_Logo_128_128_transparent.png" library="images"/>
+<div class="card">
+    
+    <h4>Welcome to the TabForge AI Demo!</h4>
+    <h5>From developer for developers - TabForge AI is a powerful development platform that takes Java web development (especially Jakarta E 11+) to the next level. A next-gen Java library that introduces AI support to the Jakarta EE ecosystem in an easy and simple way.
+    </h5>
+    <p>TabForge AI is a Jakarta EE library with two independent modules:
+        <ul>
+            <li>**DynTabs** — Single page, multi-tab PrimeFaces UI with a proper CDI scope per tab</li>
+            <li>**EasyAI** —  Add AI assistants and chatbots to your app in minutes</li>
+        </ul>
+        Both are designed for real Jakarta EE applications: CDI, EJB, PrimeFaces, GlassFish, WildFly, Payara and others Jakarta EE 11+ app servers
+    </p>
+
+    <p:divider align="left" type="dashed">
+        <b>EasyAI — LangChain4J based AI module for Jakarta EE Applications</b>
+    </p:divider>
+
+    <p>
+      <b>### The problem:</b> Adding AI to a Jakarta EE application with LangChain4J means learning `ChatLanguageModel`, `AiServices`, `ToolSpecification`, `EmbeddingStore`, `ContentRetriever`, and more — before writing a single line of business logic. Spring AI has the similar problem.
+    </p>
+    <p>
+      <b>### The solution:</b> an abstraction layer over LangChain4J. It hides all the low-level  complexity behind 
+         a simple builder-pattern API. You don't need to know anything about ChatLanguageModel, AiServices, ToolSpecification, or EmbeddingStore.
+    </p>
+    <p>
+      You just need to know 3 things:
+      <ul>
+        <li>EasyAI.chat()       - for simple conversations</li>
+        <li>EasyAI.assistant()  - for smart assistants that can call your Java code</li>
+        <li>@EasyRAG            - for AI that answers questions from your documents</li>
+     </ul>
+    </p>
+    
+    <p>
+    In this way, it is quite easy (without knowing low-level LangChain4J details) to achieve:
+      <ul>
+        <li>Simple chat</li>
+        <li>Code review by AI model</li>
+        <li>You give the AI access to your existing Java services, and it decides when to call them based on the user's question.
+           NOTE: YOUR SERVICE CLASSES DON'T NEED ANY AI ANNOTATIONS - they can be plain Java classes, as well as Jakarta EE EJB beans
+        </li>
+        <li>Document-Powered AI (RAG): Let the AI answer questions based on your PDF, DOCX, or TXT files.
+            The AI reads your documents and gives answers based on their content</li>
+        <li>You can combine tools (including EJB beans) AND internal documents on the same assistant</li>    
+     </ul>
+    </p> 
+     <p>
+        This way, you allow the app user to interact with the application in natural language, for example:
+     </p>
+     <p>   
+        <i>Show me all orders for john@example.com, Cancel my order #12345, Add a blue t-shirt to my cart, What's in my cart?</i><br/>
+        And AI will respond with:<br/>
+        <i>The user with the email address john@example.com has the following orders: ORD-001, ORD-002, ORD-00</i>
+     </p>
+      
+    <p>
+      EasyAI fully supports Jakarta EJB beans (@Stateless, @Stateful, @Singleton) as tool objects. If you inject an EJB via @Inject and pass it to withTools(),
+      everything works automatically - EasyAI detects the EJB proxy and discovers the business methods from the actual bean class.    
+    </p>    
+    
+    <p>
+      In a Jakarta EE application (GlassFish, WildFly, Payara, etc.), assistants annotated with @EasyAIAssistant are automatically injectable.
+      The CDI extension (EasyAIExtension) creates one ApplicationScoped instance   per assistant interface.
+    </p>
+    <p>
+        <p:commandLink value="Open Easy AI Demo" action="uishell:EasyAIDemo" immediate="true" process="@this"/>
+    </p>
+
+    <p:divider align="left" type="dashed">
+        <b>DynTabs - framework for building single page, multi-tab Jakarta EE web applications with PrimeFaces</b>
+    </p:divider>
+
+    <p>
+     Instead of having multiple XHTML pages, and managing page navigation manually, you will have only one page in the application. 
+     Application modules will open dynamically as independent tabs within the same page.
+     All you, as developer, need to do, is to define tabs as annotated CDI beans. The framework handles opening, closing, lifecycle, and
+     state - automatically.
+    </p>
+    <p>
+      Each tab gets its own isolated CDI bean instance via @TabScoped - a custom CDI
+      scope that lives exactly as long as the tab is open. Open the same tab twice
+      and you get two completely independent bean instances.
+    </p>
+    
+    <p>
+      Dynamic tabs have their own lifecycle, monitored via methods you can overide, their own Inter-Tab Communication, 
+      Workflow - Parent Opens Child, Child Returns a Value, their own declarative security, and reach set of events which you can respond to by overriding 
+      predefined methods. The same CDI bean can serve as multiple different tabs,  each with its own title, parameters, and security settings.
+    </p>
+    
+    <p>
+     You just need to know 4 things:
+     <ul>
+        <li>@DynTab          - marks a CDI bean as a tab definition</li>
+        <li>@TabScoped       - custom CDI scope: one instance per open tab</li>
+        <li>DynTabManager    - API for opening, closing, and selecting tabs</li>
+        <li>BaseDyntabCdiBean - base class with tab lifecycle and event support</li>
+     </ul>
+    </p>
+    <ul>
+       <li> <p:commandLink value="Open Cloning  and DynTab event demo" action="uishell:Proizvodi" immediate="true" process="@this"/> </li>
+       <li> <p:commandLink value="Open Parametrizes behavior demo" action="uishell:DiscountedProducts"  immediate="true" process="@this"/> </li>
+       <li> <p:commandLink value="Create or edit multiple records at the same time demo" action="uishell:ProductsCrud"  immediate="true" process="@this"/> </li>       
+    </ul>
+    
+    
+
+</div>             
+       
+</ui:define>
+</ui:composition>
