@@ -11,7 +11,7 @@
     </properties>
     
      <build>
-        <finalName>tabforge_ai_demo_1_0</finalName>
+        <finalName>tabforge_ai_demo_1_1</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -37,6 +37,18 @@
                     <failOnMissingWebXml>false</failOnMissingWebXml>
                 </configuration>
             </plugin>
+            
+         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+          <configuration>
+              <compilerArgs>
+                  <arg>-parameters</arg>
+              </compilerArgs>
+          </configuration>
+         </plugin>  
+  
         </plugins>
         
      </build>
@@ -46,7 +58,7 @@
   <dependency>
       <groupId>io.github.tabforgeai</groupId>
       <artifactId>tabforge-ai</artifactId>
-      <version>1.0.0</version>
+      <version>1.1.0</version>
   </dependency>
   
    <dependency>

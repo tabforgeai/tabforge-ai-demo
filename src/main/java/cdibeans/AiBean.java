@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import dyntabs.BaseDyntabCdiBean;
 import dyntabs.ai.Conversation;
 import dyntabs.ai.EasyAI;
+import dyntabs.ai.EasyAgent;
 import dyntabs.ai.rag.DocumentSource;
 import dyntabs.annotation.DynTab;
 import dyntabs.scope.TabScoped;
@@ -27,8 +28,11 @@ import jakarta.faces.application.FacesMessage;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import services.CartService;
+import services.InventoryService;
 import services.OrderService;
+import services.PaymentService;
 import services.PricingService;
+import services.ShippingService;
 import services.UserService;
 
 @Named
@@ -48,6 +52,15 @@ public class AiBean extends BaseDyntabCdiBean {
 	@Inject
 	CartService cartService;
 
+	@Inject
+	InventoryService inventoryService;
+	@Inject
+	PaymentService paymentService;
+	@Inject
+	ShippingService shippingService;
+
+	EasyAgent agent;
+
 	@Override
 	protected void accessPointMethod(Map parameters) {
 		super.accessPointMethod(parameters);
@@ -63,11 +76,21 @@ public class AiBean extends BaseDyntabCdiBean {
 		 * EasyAI.configure(EasyAIConfig.builder().provider("openai").apiKey(
 		 * "YOUR_API_KEY_HERE") .modelName("gpt-4o-mini").build());
 		 */
+
+		// from easyai.properties:
 		chat = EasyAI.chat().withMemory(20) // remember last 20 messages
 				.withSystemMessage("You are a helpful tutor") // set AI personality
 				.build();
 
 		reviewer = EasyAI.assistant(CodeReviewer.class).build();
+
+		// EastAgent:
+
+		agent = EasyAI.agent().withServices(inventoryService, paymentService, orderService, shippingService)
+				.withMaxSteps(10).withPlanningPrompt(true)
+				.withStepListener(step -> log.info("[AGENT] Step {}: {}({}) -> {}", step.stepNumber(), step.toolName(),
+						step.arguments(), step.result()))
+				.build();
 
 		// pass any number of services:
 		// bot = EasyAI.assistant(SupportBot.class).withTools(orderService, userService,
@@ -304,6 +327,55 @@ public class AiBean extends BaseDyntabCdiBean {
 			ex.printStackTrace();
 			FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, EasyAI.extractErrorMessage(ex),
 					ex.getMessage());
+			PrimeFaces.current().dialog().showMessageDynamic(message);
+		}
+	}
+
+	// ----EasyAgent demo:
+
+	private List<String> agentMessages = new ArrayList<>();
+
+	public List<String> getAgentMessages() {
+		return agentMessages;
+	}
+
+	private String userAgentMessage = "Ask the question...(Order 2 laptops for user U123, apply loyalty credit, deliver to My City. If out of stock, use warehouse WH-EU.)";
+
+	public String getUserAgentMessage() {
+		return userAgentMessage;
+	}
+
+	public void setUserAgentMessage(String userMessage) {
+		this.userAgentMessage = userMessage;
+	}
+
+	/**
+	 * Response will be something like this:
+	 * 
+	 * 
+	 * ▎ "I have successfully processed your order. 2 laptops were reserved from
+	 * warehouse WH-EU (REF-4521). A loyalty credit was applied, and the remaining
+	 * amount was charged to your card (PAY-73291). Order ORD-8812 has been created
+	 * and delivery to Belgrade has been scheduled — estimated arrival in 2-3
+	 * business days."
+	 */
+	public void sendUserAgentMessage() {
+		String answer = "";
+		try {
+			answer = agent.execute(getUserAgentMessage());
+			agentMessages.add("<b>AI:</b> " + answer);
+			setUserAgentMessage("");
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			answer = "Agent error: " + EasyAI.extractErrorMessage(ex);
+
+			String mainMsg = "Agent error: " + EasyAI.extractErrorMessage(ex);
+			String detailMsg = mainMsg;
+			if (ex instanceof RuntimeException && ex.getCause() != null
+					&& ex.getCause() instanceof javax.net.ssl.SSLHandshakeException) {
+				mainMsg = "Add AI provider certificate to the app server trust store!";
+			}
+			FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, mainMsg, detailMsg);
 			PrimeFaces.current().dialog().showMessageDynamic(message);
 		}
 	}

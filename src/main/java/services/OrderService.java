@@ -63,4 +63,10 @@ public class OrderService {
 		}
 		return true;
 	}
+
+	public String createOrder(String item, String reservationRef, String paymentRef) {
+		String orderId = "ORD-" + (Math.abs((reservationRef + paymentRef).hashCode()) % 9000 + 1000);
+		return "Order created for " + item + ". Reservation: " + reservationRef + ", Payment: " + paymentRef
+				+ ". Order ID: " + orderId;
+	}
 }

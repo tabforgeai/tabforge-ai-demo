@@ -1,0 +1,44 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+
+    <!-- AI response part -->
+    <p:outputPanel id="agentPanel" widgetVar="agentScroll" 
+                   style="height:300px; overflow:auto; border:1px solid #ccc; padding:10px; width:100%;">
+        <ui:repeat value="#{dynTab.cdiBean.agentMessages}" var="msg">
+            <p:outputLabel value="#{msg}" escape="false" style="display:block; margin-bottom:8px;" />
+        </ui:repeat>
+    </p:outputPanel>
+
+    <p:spacer height="10"/>
+
+    <!-- Container za unos -->
+    <p:outputPanel style="width:100%;">
+        <p:inputTextarea id="theUserInput" value="#{dynTab.cdiBean.userAgentMessage}" rows="3" 
+                         autoResize="true" style="width:100%;"/>
+        <p:spacer height="5"/>
+        <p:commandButton action="#{dynTab.cdiBean.sendUserAgentMessage}"
+                         update="agentPanel, theUserInput" 
+                         process="@this theUserInput" 
+                         icon="pi pi-send"
+                         class="secondary-button"
+                         style="width:100%;"
+                         oncomplete="scrollAgentChatToBottom();"
+                         />
+    </p:outputPanel>
+
+<h:outputScript>
+function scrollAgentChatToBottom() {
+    var container = jQuery('[id$="agentPanel"]').first(); 
+    if (container.length > 0) {
+        container.animate({
+            scrollTop: container[0].scrollHeight
+        }, 500);
+    }
+}
+</h:outputScript>
+   
+   
+   </ui:composition>
