@@ -13,6 +13,9 @@ import org.primefaces.model.file.UploadedFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import api.AgentEvent;
+import api.AiEventChannel;
+import api.EasyAiActivityBridge;
 import dyntabs.BaseDyntabCdiBean;
 import dyntabs.ai.Conversation;
 import dyntabs.ai.EasyAI;
@@ -25,6 +28,7 @@ import interfaces.PolicyBot;
 import interfaces.SalesBot;
 import interfaces.SupportBot;
 import jakarta.faces.application.FacesMessage;
+import jakarta.faces.context.FacesContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import services.CartService;
@@ -59,6 +63,16 @@ public class AiBean extends BaseDyntabCdiBean {
 	@Inject
 	ShippingService shippingService;
 
+	/** Application-scoped SSE registry; the bridge pushes Activity-Panel events through it. */
+	@Inject
+	AiEventChannel activityChannel;
+
+	/** HTTP session id of the user who opened this tab — the SSE target for live events. */
+	String sessionId;
+
+	/** Translates this tab's EasyAI events into Activity-Panel rows for {@link #sessionId}. */
+	EasyAiActivityBridge activityBridge;
+
 	EasyAgent agent;
 
 	@Override
@@ -77,9 +91,15 @@ public class AiBean extends BaseDyntabCdiBean {
 		 * "YOUR_API_KEY_HERE") .modelName("gpt-4o-mini").build());
 		 */
 
+		// Live observability bridge: capture this user's session id once, then stream every
+		// EasyAI event from this tab into the pf-modern-template Activity Panel over SSE.
+		this.sessionId = currentSessionId();
+		this.activityBridge = new EasyAiActivityBridge(activityChannel, sessionId);
+
 		// from easyai.properties:
 		chat = EasyAI.chat().withMemory(20) // remember last 20 messages
 				.withSystemMessage("You are a helpful tutor") // set AI personality
+				.withEventListener(activityBridge) // narrate the turn into the Activity Panel
 				.build();
 
 		reviewer = EasyAI.assistant(CodeReviewer.class).build();
@@ -90,12 +110,27 @@ public class AiBean extends BaseDyntabCdiBean {
 				.withMaxSteps(10).withPlanningPrompt(true)
 				.withStepListener(step -> log.info("[AGENT] Step {}: {}({}) -> {}", step.stepNumber(), step.toolName(),
 						step.arguments(), step.result()))
+				.withEventListener(activityBridge) // stream each tool call live to the Activity Panel
 				.build();
 
 		// pass any number of services:
 		// bot = EasyAI.assistant(SupportBot.class).withTools(orderService, userService,
 		// cartService).build();
 
+	}
+
+	/**
+	 * Resolve the current HTTP session id from the active JSF request.
+	 *
+	 * <p>Both the JSF postbacks that drive this tab and the browser's SSE {@code EventSource}
+	 * share one HTTP session (same {@code JSESSIONID} cookie), so this id is exactly the key the
+	 * {@link AiEventChannel} uses to deliver events back to the same browser.</p>
+	 *
+	 * @return the session id, creating the session if necessary
+	 */
+	private String currentSessionId() {
+		Object req = FacesContext.getCurrentInstance().getExternalContext().getRequest();
+		return ((jakarta.servlet.http.HttpServletRequest) req).getSession(true).getId();
 	}
 
 	private List<String> messages = new ArrayList<>();
@@ -364,6 +399,9 @@ public class AiBean extends BaseDyntabCdiBean {
 		try {
 			answer = agent.execute(getUserAgentMessage());
 			agentMessages.add("<b>AI:</b> " + answer);
+			// The agent core narrates its steps but not the final prose answer — push it to
+			// the Activity Panel's chat bubble so the timeline ends with the actual reply.
+			activityChannel.emit(sessionId, AgentEvent.assistantMessage(answer));
 			setUserAgentMessage("");
 		} catch (Exception ex) {
 			ex.printStackTrace();
