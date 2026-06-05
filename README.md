@@ -1,6 +1,8 @@
 # TabForge AI Demo
 
-A demonstration application built with [TabForge AI](https://github.com/YOUR-USERNAME/tabforge-ai) —
+**▶️ [Watch the demo](https://youtu.be/qNDD9mfFEJk)** — live Activity panel: an autonomous agent's tool calls streaming into the UI in real time.
+
+A demonstration application built with [TabForge AI](https://github.com/tabforgeai/tabforge-ai) —
 showing DynTabs multi-tab UI and EasyAI assistant features running on Jakarta EE.
 
 ---
