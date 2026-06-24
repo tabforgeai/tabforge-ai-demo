@@ -41,7 +41,7 @@ import services.UserService;
 
 @Named
 @TabScoped
-@DynTab(name = "EasyAIDemoDynTab", uniqueIdentifier = "EasyAIDemo", title = "Easy AI Demo", includePage = "/WEB-INF/include/ai_demo/ai_demo.xhtml", closeable = true)
+@DynTab(name = "EasyAIDemoDynTab", uniqueIdentifier = "EasyAIDemo", title = "Easy AI Demo", includePage = "/WEB-INF/include/ai_demo/ai_demo.xhtml", closeable = true, trackActivity = true)
 
 public class AiBean extends BaseDyntabCdiBean {
 	private static final Logger log = LoggerFactory.getLogger(AiBean.class);

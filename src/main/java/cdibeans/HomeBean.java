@@ -14,7 +14,7 @@ import jakarta.inject.Named;
 
 @Named
 @TabScoped
-@DynTab(name = "HomeDynTab", uniqueIdentifier = "Home", title = "Welcome", includePage = "/WEB-INF/include/home/home.xhtml", closeable = false)
+@DynTab(name = "HomeDynTab", uniqueIdentifier = "Home", title = "Welcome", includePage = "/WEB-INF/include/home/home.xhtml", closeable = false, trackActivity = true)
 public class HomeBean extends BaseDyntabCdiBean {
 	private static final Logger log = LoggerFactory.getLogger(HomeBean.class);
 

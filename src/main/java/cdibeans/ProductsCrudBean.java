@@ -23,7 +23,7 @@ import services.ProductService;
 
 @Named
 @TabScoped
-@DynTab(name = "ProductsCrudDynTab", uniqueIdentifier = "ProductsCrud", title = "Products - CRUD demo", includePage = "/WEB-INF/include/proizvodi/products_crud.xhtml", closeable = true)
+@DynTab(name = "ProductsCrudDynTab", uniqueIdentifier = "ProductsCrud", title = "Products - CRUD demo", includePage = "/WEB-INF/include/proizvodi/products_crud.xhtml", closeable = true, trackActivity = true)
 
 public class ProductsCrudBean extends BaseDyntabCdiBean {
 

@@ -24,10 +24,10 @@ import services.ProductService;
 
 @Named
 @TabScoped
-@DynTab(name = "ProizvodiDynTab", uniqueIdentifier = "Proizvodi", title = "Products", includePage = "/WEB-INF/include/proizvodi/proizvodi.xhtml", closeable = true)
+@DynTab(name = "ProizvodiDynTab", uniqueIdentifier = "Proizvodi", title = "Products", includePage = "/WEB-INF/include/proizvodi/proizvodi.xhtml", closeable = true, trackActivity = true)
 
 @DynTab(name = "DiscountedProductsDynTab", uniqueIdentifier = "DiscountedProducts", securedResource = true, allowedRoles = {
-		"ADMIN" }, title = "Discounted Products", includePage = "/WEB-INF/include/proizvodi/proizvodi.xhtml", closeable = true, parameters = {
+		"ADMIN" }, title = "Discounted Products", includePage = "/WEB-INF/include/proizvodi/proizvodi.xhtml", closeable = true, trackActivity = true, parameters = {
 				"discount=true" })
 
 public class Proizvodi extends BaseDyntabCdiBean {

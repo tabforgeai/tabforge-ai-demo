@@ -314,20 +314,38 @@
           EasyAIEvent (library)  →  EasyAiActivityBridge  →  AgentEvent (JSON)
               →  GET /api/ai/stream (SSE)  →  this panel.
 
-        We only OPEN the inbound SSE stream and turn off the built-in simulation.
-        The work itself is triggered by the ordinary JSF buttons in the demo tabs
-        (e.g. "send to agent"), so there is no chat-input POST endpoint to wire.
+        Two wires connect the panel to the backend:
+          1. OUTBOUND (AI → UI): we open the always-on SSE stream and turn off the
+             built-in simulation, so live agent/tool activity shows in the Activity tab.
+          2. INBOUND (UI → AI): we forward each chat message the panel emits to
+             POST /api/ai/chat and render the reply via aiPanel.streamAssistant(...).
+             That endpoint runs a session-wide, ambient-aware assistant, so it can
+             answer "where am I?" from the tabs you have been navigating.
     -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Stop the canned demo so only real library events show.
+            // Stop the canned demo so only real library events / replies show.
             PFTemplate.DemoAgent.enabled = false;
 
-            // Open the always-on event feed; auto-reconnects if it drops.
+            // (1) Open the always-on event feed; auto-reconnects if it drops.
             PFTemplate.AgentTransport.connectSSE('#{request.contextPath}/api/ai/stream');
 
             // Auto-open the Activity tab the moment events start arriving.
             PFTemplate.activityPanel.configure({ agentName: 'TabForge AI', autoSwitchTab: true });
+
+            // (2) Wire the chat input to the global assistant. The panel emits the typed
+            // text; we POST it and stream the reply back into the same chat.
+            PFTemplate.InputEventBus.on('user_message', function (msg) {
+                if (!msg.text) return;
+                fetch('#{request.contextPath}/api/ai/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: msg.text })
+                })
+                .then(function (r) { return r.text(); })
+                .then(function (reply) { PFTemplate.aiPanel.streamAssistant(reply); })
+                .catch(function (e) { PFTemplate.aiPanel.streamAssistant('Error: ' + e); });
+            });
         });
     </script>
 
