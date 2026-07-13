@@ -5,16 +5,19 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dyntabs.ai.annotation.EasyTool;
 import jakarta.ejb.Stateless;
 
 @Stateless
 public class OrderService {
 	private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
+	@EasyTool("Finds an order by its ID and returns its current status")
 	public String findOrder(String orderId) {
 		return "Order " + orderId + ": shipped, arrives tomorrow";
 	}
 
+	@EasyTool("Cancels an active order")
 	public String cancelOrder(String orderId) {
 		return "Order " + orderId + " has been cancelled";
 	}
@@ -31,6 +34,7 @@ public class OrderService {
 	 * @param email
 	 * @return
 	 */
+	@EasyTool("Lists the orders for a customer, given their email address")
 	public String getOrdersByCustomer(String email) {
 		log.debug("getOrdersByCustomer(), email = {}", email);
 		try {
@@ -64,6 +68,7 @@ public class OrderService {
 		return true;
 	}
 
+	@EasyTool("Creates an order for an item, given a reservation reference and a payment reference")
 	public String createOrder(String item, String reservationRef, String paymentRef) {
 		String orderId = "ORD-" + (Math.abs((reservationRef + paymentRef).hashCode()) % 9000 + 1000);
 		return "Order created for " + item + ". Reservation: " + reservationRef + ", Payment: " + paymentRef

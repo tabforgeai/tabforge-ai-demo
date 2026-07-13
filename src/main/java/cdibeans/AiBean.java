@@ -317,7 +317,7 @@ public class AiBean extends BaseDyntabCdiBean {
 
 	// ----Combined - Tools + RAG stuff:
 	SalesBot salesBot = null;
-	PricingService pricingService = new PricingService(); // plain Java class as AI tool, without ANY annotations!
+	PricingService pricingService = new PricingService(); // plain Java class; its @EasyTool method is the AI tool
 
 	public void handleCombinedRAGFileUpload(FileUploadEvent event) {
 		String fileName = event.getFile().getFileName();

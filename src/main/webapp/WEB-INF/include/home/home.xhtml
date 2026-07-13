@@ -64,8 +64,8 @@
      </p>
       
     <p>
-      EasyAI fully supports Jakarta EJB beans (@Stateless, @Stateful, @Singleton) as tool objects. If you inject an EJB via @Inject and pass it to withTools(),
-      everything works automatically - EasyAI detects the EJB proxy and discovers the business methods from the actual bean class.    
+      EasyAI fully supports Jakarta EJB beans (@Stateless, @Stateful, @Singleton) as tool objects. Mark the callable methods with @EasyTool, inject the EJB via @Inject, and pass it to withTools() —
+      EasyAI detects the EJB proxy and reads the annotated methods from the actual bean class. Tools are opt-in: only @EasyTool methods are exposed to the model.
     </p>    
     
     <p>
