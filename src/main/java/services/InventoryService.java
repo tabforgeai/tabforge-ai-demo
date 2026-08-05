@@ -1,9 +1,9 @@
 package services;
 
 import dyntabs.ai.annotation.EasyTool;
-import jakarta.ejb.Stateless;
+import jakarta.enterprise.context.ApplicationScoped;
 
-@Stateless
+@ApplicationScoped
 public class InventoryService {
 
 	@EasyTool("Checks whether the requested quantity of a product is in stock")

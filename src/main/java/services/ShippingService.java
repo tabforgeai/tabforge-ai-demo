@@ -1,9 +1,9 @@
 package services;
 
 import dyntabs.ai.annotation.EasyTool;
-import jakarta.ejb.Stateless;
+import jakarta.enterprise.context.ApplicationScoped;
 
-@Stateless
+@ApplicationScoped
 public class ShippingService {
 
 	@EasyTool("Schedules delivery of an order to an address and returns the estimated arrival")

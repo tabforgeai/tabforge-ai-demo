@@ -2,7 +2,10 @@
 <beans bean-discovery-mode="all" version="4.0"
            xmlns="https://jakarta.ee/xml/ns/jakartaee">
        <interceptors>
-            <!-- Enforces allowedRoles on tabs marked securedResource=true -->
-            <class>security.InMemoryAccessCheckInterceptor</class>
-        </interceptors>           
+            <!-- Enforces allowedRoles on tabs marked securedResource=true.
+                 Demo subclass of the library's InMemoryAccessCheckInterceptor that
+                 reads the caller's roles from Jakarta Security (the container), instead
+                 of the default "user_roles" session attribute. -->
+            <class>security.SecurityContextAccessCheckInterceptor</class>
+        </interceptors>
 </beans>

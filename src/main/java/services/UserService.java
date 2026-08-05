@@ -1,9 +1,9 @@
 package services;
 
 import dyntabs.ai.annotation.EasyTool;
-import jakarta.ejb.Stateful;
+import jakarta.enterprise.context.ApplicationScoped;
 
-@Stateful
+@ApplicationScoped
 public class UserService {
 
 	@EasyTool("Finds a user by their ID")

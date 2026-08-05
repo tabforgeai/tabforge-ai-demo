@@ -8,7 +8,6 @@ import jakarta.security.enterprise.credential.UsernamePasswordCredential;
 import jakarta.security.enterprise.identitystore.CredentialValidationResult;
 import jakarta.security.enterprise.identitystore.IdentityStore;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.faces.context.FacesContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,32 +26,21 @@ public class CustomInMemoryIdentityStore implements IdentityStore {
     public CredentialValidationResult validate(Credential credential) {
     	log.info("validate() call");
         UsernamePasswordCredential login = (UsernamePasswordCredential) credential;
-        HashSet<String> ulogeSet = new HashSet<String>();
-        CredentialValidationResult result = null;
- 
-        if (login.getCaller().equals("admin@mail.com") 
+
+        if (login.getCaller().equals("admin@mail.com")
                        && login.getPasswordAsString().equals("ADMIN123")) {
         	log.info("admin");
-            result =  new CredentialValidationResult("admin", new HashSet<>(Arrays.asList("ADMIN", "USER")));
-            ulogeSet.add("ADMIN");
-            ulogeSet.add("USER"); 
-        } else if (login.getCaller().equals("user@mail.com") 
+            return new CredentialValidationResult("admin", new HashSet<>(Arrays.asList("ADMIN", "USER")));
+        } else if (login.getCaller().equals("user@mail.com")
                        && login.getPasswordAsString().equals("USER123")) {
         	log.info("user");
-            result =  new CredentialValidationResult("user", new HashSet<>(Arrays.asList("USER")));
-            ulogeSet.add("USER");
-        } else {
-            result =  CredentialValidationResult.NOT_VALIDATED_RESULT;
+            return new CredentialValidationResult("user", new HashSet<>(Arrays.asList("USER")));
         }
-        // now, because of AbstractAccessCheckInterceptor.getUserRoles(), put user roles, in the "user_roles" session atribute:
-        try {
-            FacesContext facesContext = FacesContext.getCurrentInstance();
-            if (facesContext != null) {
-                facesContext.getExternalContext().getSessionMap().put("user_roles", ulogeSet);
-            }
-        } catch (NoClassDefFoundError e) {
-            // FacesContext not available (e.g., in unit tests without JSF runtime)
-        }
-        return result;
+        return CredentialValidationResult.NOT_VALIDATED_RESULT;
+        // NOTE: the roles returned above are handed to the container, so
+        // ExternalContext.isUserInRole(...) reflects them for the rest of the session.
+        // SecurityContextAccessCheckInterceptor reads them straight from there — there is
+        // deliberately no copy into a "user_roles" session attribute anymore (single source
+        // of truth = the platform's caller identity).
     }
 }

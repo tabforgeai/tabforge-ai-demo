@@ -1,9 +1,9 @@
 package services;
 
 import dyntabs.ai.annotation.EasyTool;
-import jakarta.ejb.Stateless;
+import jakarta.enterprise.context.ApplicationScoped;
 
-@Stateless
+@ApplicationScoped
 public class PaymentService {
 
 	@EasyTool("Applies the loyalty credit available for a user and returns the credited amount")

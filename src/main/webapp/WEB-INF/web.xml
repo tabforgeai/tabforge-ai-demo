@@ -11,8 +11,12 @@
     <!-- Security Configuration -->
     <security-constraint>
         <web-resource-collection>
-            <web-resource-name>Application pages</web-resource-name>
+            <web-resource-name>Application pages and AI REST API</web-resource-name>
             <url-pattern>/main.xhtml</url-pattern>
+            <!-- Lean on the platform: protect the REST layer declaratively too.
+                 POST /api/ai/chat and GET /api/ai/stream reach the assistant, so an
+                 unauthenticated caller must not be able to hit them. -->
+            <url-pattern>/api/*</url-pattern>
         </web-resource-collection>
         <auth-constraint>
             <role-name>ADMIN</role-name>

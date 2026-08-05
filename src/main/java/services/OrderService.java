@@ -8,6 +8,22 @@ import org.slf4j.LoggerFactory;
 import dyntabs.ai.annotation.EasyTool;
 import jakarta.ejb.Stateless;
 
+/**
+ * <b>Deliberately an EJB</b> ({@code @Stateless}), while the other demo services are plain
+ * CDI beans ({@code @ApplicationScoped}).
+ *
+ * <p>This one is kept as a session bean on purpose, to show that EasyAI discovers
+ * {@code @EasyTool} methods on EJBs too: at runtime {@code OrdersBean} injects this as a
+ * container proxy and passes it to {@code .withTools(orderService)}. EasyAI's tool
+ * introspection unwraps the CDI/EJB proxy to find the real methods, so an application that
+ * already has its business logic in EJBs does not have to rewrite anything to expose a few
+ * methods as AI tools. Think of it as a certified translator standing next to a sealed
+ * diplomatic envelope (the proxy): EasyAI reads what is really inside, not just the seal.</p>
+ *
+ * <p>Everything else in this package uses {@code @ApplicationScoped} — the idiomatic modern
+ * default. The point of the mix is not "always use EJBs", it is "you don't have to give them
+ * up to adopt EasyAI".</p>
+ */
 @Stateless
 public class OrderService {
 	private static final Logger log = LoggerFactory.getLogger(OrderService.class);

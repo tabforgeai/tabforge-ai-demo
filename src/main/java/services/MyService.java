@@ -1,9 +1,9 @@
 package services;
 
 import model.Product;
-import jakarta.ejb.Stateless;
+import jakarta.enterprise.context.ApplicationScoped;
 
-@Stateless
+@ApplicationScoped
 public class MyService {
    public Product createNewProduct() {
 	   return new Product();
