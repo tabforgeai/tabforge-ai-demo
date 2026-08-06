@@ -20,7 +20,10 @@ import dyntabs.BaseDyntabCdiBean;
 import dyntabs.ai.Conversation;
 import dyntabs.ai.EasyAI;
 import dyntabs.ai.EasyAgent;
+import dyntabs.ai.Flow;
+import dyntabs.ai.flow.FlowContext;
 import dyntabs.ai.rag.DocumentSource;
+import model.OrderRequest;
 import dyntabs.annotation.DynTab;
 import dyntabs.scope.TabScoped;
 import interfaces.CodeReviewer;
@@ -75,6 +78,14 @@ public class AiBean extends BaseDyntabCdiBean {
 
 	EasyAgent agent;
 
+	/**
+	 * Deterministic order pipeline built with {@code EasyAI.flow()} — the counterpart to
+	 * {@link #agent}. Same four services, same live Activity-Panel stream, but the LLM is invited
+	 * in only at the two edges ("understand" the request, "summarize" the outcome) while steps
+	 * 2–7 run as plain Java in a fixed order. Built once in {@link #accessPointMethod(Map)}.
+	 */
+	Flow orderFlow;
+
 	@Override
 	protected void accessPointMethod(Map parameters) {
 		super.accessPointMethod(parameters);
@@ -111,6 +122,57 @@ public class AiBean extends BaseDyntabCdiBean {
 				.withStepListener(step -> log.info("[AGENT] Step {}: {}({}) -> {}", step.stepNumber(), step.toolName(),
 						step.arguments(), step.result()))
 				.withEventListener(activityBridge) // stream each tool call live to the Activity Panel
+				.build();
+
+		// EasyAI.flow() — the deterministic counterpart to the agent above.
+		// Same services, same Activity-Panel stream (Source.FLOW), but WE fix the order in Java
+		// and the LLM is called only at the two edges: "understand" (extract) and "summarize" (chat).
+		// Steps 2–7 are plain Java service calls, always in this order — the money/state path can't
+		// be reordered or invented by the model. Note the "reserve" step: a plain Java `if` inside a
+		// single step handles the low-stock branch deterministically — for a simple in-step
+		// conditional you don't need the declarative .stepIf(name, cond, fn) (that's for when the
+		// branch deserves its own named, skippable step). Recovery-on-failure is likewise available
+		// as .step(name, fn).orElse(altFn).
+		orderFlow = EasyAI.flow()
+				.step("understand", ctx -> EasyAI.extract(OrderRequest.class).from(ctx.inputText())) // LLM edge
+				.step("checkStock", ctx -> {
+					OrderRequest r = ctx.get("understand", OrderRequest.class);
+					return inventoryService.checkStock(r.product(), r.quantity());
+				})
+				.step("reserve", ctx -> {
+					OrderRequest r = ctx.get("understand", OrderRequest.class);
+					boolean inStock = ctx.get("checkStock", Boolean.class);
+					if (inStock) {
+						return r.quantity() + "x " + r.product() + " reserved from main stock.";
+					}
+					String warehouse = r.alternateWarehouse() != null ? r.alternateWarehouse() : "WH-EU";
+					return inventoryService.getFromWarehouse(r.product(), r.quantity(), warehouse);
+				})
+				.step("applyCredit", ctx -> {
+					OrderRequest r = ctx.get("understand", OrderRequest.class);
+					return paymentService.applyLoyaltyCredit(r.userCode());
+				})
+				.step("pay", ctx -> {
+					OrderRequest r = ctx.get("understand", OrderRequest.class);
+					double credit = parseAmount(ctx.get("applyCredit", String.class));
+					double total = Math.max(0.0, 299.0 * r.quantity() - credit);
+					String method = r.paymentMethod() != null ? r.paymentMethod() : "card";
+					return paymentService.processPayment(total, method);
+				})
+				.step("createOrder", ctx -> {
+					OrderRequest r = ctx.get("understand", OrderRequest.class);
+					return orderService.createOrder(r.product(),
+							ctx.get("reserve", String.class), ctx.get("pay", String.class));
+				})
+				.step("ship", ctx -> {
+					OrderRequest r = ctx.get("understand", OrderRequest.class);
+					String address = r.address() != null ? r.address() : "the delivery address";
+					return shippingService.scheduleDelivery(ctx.get("createOrder", String.class), address);
+				})
+				.step("summarize", ctx -> EasyAI.chat().build() // LLM edge
+						.send("You are an order assistant. In 2-3 sentences, tell the user what happened, "
+								+ "using ONLY these step results:\n" + ctx.trail()))
+				.withEventListener(activityBridge) // same live stream as the agent → Activity Panel
 				.build();
 
 		// pass any number of services:
@@ -416,6 +478,66 @@ public class AiBean extends BaseDyntabCdiBean {
 			FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, mainMsg, detailMsg);
 			PrimeFaces.current().dialog().showMessageDynamic(message);
 		}
+	}
+
+	// ----EasyAI.flow() demo (deterministic order pipeline):
+
+	private List<String> flowMessages = new ArrayList<>();
+
+	public List<String> getFlowMessages() {
+		return flowMessages;
+	}
+
+	private String userFlowMessage = "Order 2 laptops for user U123, apply loyalty credit, deliver to My City. If out of stock, use warehouse WH-EU.";
+
+	public String getUserFlowMessage() {
+		return userFlowMessage;
+	}
+
+	public void setUserFlowMessage(String userFlowMessage) {
+		this.userFlowMessage = userFlowMessage;
+	}
+
+	/**
+	 * Runs the deterministic {@link #orderFlow} for the user's text and shows the final summary.
+	 *
+	 * <p>Where {@link #sendUserAgentMessage()} lets the LLM decide the order of tool calls, this
+	 * runs the SAME services in a fixed order we authored in {@link #accessPointMethod(Map)} — the
+	 * LLM is only touched at the "understand" and "summarize" edges. The per-step timeline still
+	 * streams live to the Activity Panel (under {@code Source.FLOW}); here we additionally push the
+	 * final prose to the panel's chat bubble, exactly like the agent does.</p>
+	 */
+	public void sendUserFlowMessage() {
+		try {
+			FlowContext out = orderFlow.run(getUserFlowMessage());
+			String answer = String.valueOf(out.result());
+			flowMessages.add("<b>AI (flow):</b> " + answer);
+			activityChannel.emit(sessionId, AgentEvent.assistantMessage(answer));
+			setUserFlowMessage("");
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			String mainMsg = "Flow error: " + EasyAI.extractErrorMessage(ex);
+			String detailMsg = mainMsg;
+			if (ex instanceof RuntimeException && ex.getCause() != null
+					&& ex.getCause() instanceof javax.net.ssl.SSLHandshakeException) {
+				mainMsg = "Add AI provider certificate to the app server trust store!";
+			}
+			FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, mainMsg, detailMsg);
+			PrimeFaces.current().dialog().showMessageDynamic(message);
+		}
+	}
+
+	/**
+	 * Parses a leading decimal amount out of a service's prose result (e.g. {@code "150.0"} or
+	 * {@code "150.0 credited"}); returns {@code 0.0} if none is found. Demo-grade leniency — the
+	 * illustrative services return human strings, not typed money.
+	 */
+	private static double parseAmount(String s) {
+		if (s == null) {
+			return 0.0;
+		}
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("-?\\d+(?:\\.\\d+)?").matcher(s);
+		return m.find() ? Double.parseDouble(m.group()) : 0.0;
 	}
 
 }

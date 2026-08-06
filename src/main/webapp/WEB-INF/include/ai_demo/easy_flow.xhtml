@@ -1,0 +1,55 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:ui="http://java.sun.com/jsf/facelets"
+   xmlns:f="http://java.sun.com/jsf/core"
+   xmlns:p="http://primefaces.org/ui"
+   xmlns:h="http://java.sun.com/jsf/html">
+
+    <p:outputPanel style="width:100%; margin-bottom:8px;">
+        <p>
+            <b>Deterministic order pipeline.</b> Same four services as the EasyAgent tab, but here
+            <i>we</i> fix the order in Java and the LLM is called only at the two edges
+            (<code>understand</code> the request, <code>summarize</code> the outcome). Steps
+            <code>checkStock → reserve → applyCredit → pay → createOrder → ship</code> always run in
+            that order — the money/state path can't be reordered or invented by the model. Watch the
+            Activity Panel: the same live timeline, but every step is yours.
+        </p>
+    </p:outputPanel>
+
+    <!-- AI response part -->
+    <p:outputPanel id="flowPanel" widgetVar="flowScroll"
+                   style="height:300px; overflow:auto; border:1px solid #ccc; padding:10px; width:100%;">
+        <ui:repeat value="#{dynTab.cdiBean.flowMessages}" var="msg">
+            <p:outputLabel value="#{msg}" escape="false" style="display:block; margin-bottom:8px;" />
+        </ui:repeat>
+    </p:outputPanel>
+
+    <p:spacer height="10"/>
+
+    <!-- Container za unos -->
+    <p:outputPanel style="width:100%;">
+        <p:inputTextarea id="theFlowInput" value="#{dynTab.cdiBean.userFlowMessage}" rows="3"
+                         autoResize="true" style="width:100%;"/>
+        <p:spacer height="5"/>
+        <p:commandButton action="#{dynTab.cdiBean.sendUserFlowMessage}"
+                         update="flowPanel, theFlowInput"
+                         process="@this theFlowInput"
+                         icon="pi pi-send"
+                         class="secondary-button"
+                         style="width:100%;"
+                         oncomplete="scrollFlowChatToBottom();"
+                         />
+    </p:outputPanel>
+
+<h:outputScript>
+function scrollFlowChatToBottom() {
+    var container = jQuery('[id$="flowPanel"]').first();
+    if (container.length > 0) {
+        container.animate({
+            scrollTop: container[0].scrollHeight
+        }, 500);
+    }
+}
+</h:outputScript>
+
+
+   </ui:composition>

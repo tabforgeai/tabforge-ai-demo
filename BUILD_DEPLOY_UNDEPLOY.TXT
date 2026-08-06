@@ -11,6 +11,6 @@
 c:\GlassFish_8\bin\asadmin redeploy --name tabforge_ai_demo_1_1  c:\Eclipse2025_Workspace\tabforge-ai-demo\target\tabforge_ai_demo_1_1.war
 
 -ACCESS:
-localhost:8080/tabforge_ai_demo_1_0/login.xhtml
+localhost:8080/tabforge_ai_demo_1_1/login.xhtml
   admin@mail.com/ADMIN123
   user@mail.com/USER123
