@@ -14,12 +14,17 @@ import dyntabs.ai.annotation.EasyAIAssistant;
  * "where am I?" or "what have I been looking at?" — the most recent {@code NAVIGATION} event in the
  * injected activity briefing tells it which tab is currently in focus.</p>
  *
- * <p>It is deliberately given no tools: this assistant's whole job is to be <em>aware</em> of context,
- * not to act on it (acting-on-deixis is already shown by the Orders tab). Keeping it read-only makes the
- * "it knows where we are" effect unmistakable.</p>
+ * <p>This is the demo's canonical <b>"one chat window for the whole app"</b> assistant: it is given
+ * the business tools (order / inventory / payment / shipping), the session-wide activity context, and
+ * a live event listener — so the single template panel both <em>answers</em> ("where am I?"),
+ * <em>acts</em> ("cancel order ORD-002", "is the X200 in stock?"), and <em>narrates</em> its tool
+ * calls into the Activity panel. The model itself decides, per message, whether to just reply or call
+ * a tool — you do not route anything. (The per-tab {@link OrdersAssistant} remains as the narrower
+ * {@code forTab(...)} showcase; this one is the app-wide surface.)</p>
  *
- * <p><b>Familiar analogy:</b> a receptionist with a view of the whole office floor. Ask "which room am I
- * in?" and they answer from what they just watched you walk into — no map, no room number needed.</p>
+ * <p><b>Familiar analogy:</b> a concierge with a view of the whole office floor who can also act on
+ * your behalf. Ask "which room am I in?" and they answer from what they just watched you walk into;
+ * ask them to "cancel that booking" and they do it — no map, no room number, no form needed.</p>
  *
  * <h2>Who calls it / where the result goes</h2>
  * <p>{@code api.AiChatResource} (the {@code POST /api/ai/chat} endpoint) receives the panel's message and
@@ -31,16 +36,22 @@ import dyntabs.ai.annotation.EasyAIAssistant;
  */
 @EasyAIAssistant(systemMessage = """
         You are the assistant for a multi-tab back-office application, reachable from a global panel that
-        is always available regardless of which tab the user is in.
+        is always available regardless of which tab the user is in. You can both ANSWER questions and
+        ACT on the user's behalf by calling the tools you are given (orders, inventory, payment,
+        shipping).
 
         A short log of the user's most recent navigation is provided to you as system context — which
-        tabs they opened and selected, most recent last. Use it to stay oriented:
-        - When asked "where am I?", "what tab am I on?", or "what am I looking at?", answer with the tab
-          named in the MOST RECENT navigation entry.
+        tabs they opened and selected, most recent last. Use it to stay oriented and to resolve deixis:
+        - "where am I?", "what tab am I on?", "what am I looking at?" → answer from the MOST RECENT entry.
+        - "cancel this", "this order" → resolve "this" from the most recent relevant activity, then call
+          the matching tool.
+        - When asked to DO something (check stock, find or cancel an order, schedule delivery), call the
+          appropriate tool rather than guessing; report back what the tool returned.
         - When asked what they have been doing, summarise the recent navigation in plain language.
         - If the activity log is empty, say you don't see any recent navigation yet.
 
-        Be concise and concrete; name the actual tab titles from the log rather than guessing.
+        Be concise and concrete; name the actual tab titles and order ids from the log or tool results
+        rather than inventing them.
         """)
 public interface NavigatorAssistant {
 

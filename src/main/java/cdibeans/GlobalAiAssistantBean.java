@@ -5,6 +5,8 @@ import java.io.Serializable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import api.AiEventChannel;
+import api.EasyAiActivityBridge;
 import dyntabs.ai.EasyAI;
 import dyntabs.ai.activity.ActivityContext;
 import dyntabs.ai.activity.ActivityStore;
@@ -12,6 +14,10 @@ import interfaces.NavigatorAssistant;
 import jakarta.enterprise.context.SessionScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import services.InventoryService;
+import services.OrderService;
+import services.PaymentService;
+import services.ShippingService;
 
 /**
  * Session-scoped holder for the global, ambient-aware {@link NavigatorAssistant} behind the template's
@@ -52,6 +58,20 @@ public class GlobalAiAssistantBean implements Serializable {
     @Inject
     private ActivityStore activityStore;
 
+    /** Business services exposed to the single panel as tools (only their {@code @EasyTool} methods). */
+    @Inject
+    private OrderService orderService;
+    @Inject
+    private InventoryService inventoryService;
+    @Inject
+    private PaymentService paymentService;
+    @Inject
+    private ShippingService shippingService;
+
+    /** Application-scoped SSE registry; lets the panel narrate its tool calls into the Activity panel. */
+    @Inject
+    private AiEventChannel activityChannel;
+
     /** Built lazily on the first message, then reused for the session so chat memory persists. */
     private transient NavigatorAssistant assistant;
 
@@ -81,10 +101,15 @@ public class GlobalAiAssistantBean implements Serializable {
             ActivityContext activityContext = ActivityContext.of(activityStore)
                     .forSession(sessionId)   // session-wide: no forTab(...), so it spans every tab
                     .build();
+            // Narrate the panel's tool calls into the SAME Activity panel the agent/flow tabs feed.
+            EasyAiActivityBridge activityBridge = new EasyAiActivityBridge(activityChannel, sessionId);
             assistant = EasyAI.assistant(NavigatorAssistant.class)
-                    .withActivityContext(activityContext)
+                    // Tools: the one panel can ACT, not just navigate. Only @EasyTool methods are exposed.
+                    .withTools(orderService, inventoryService, paymentService, shippingService)
+                    .withActivityContext(activityContext)   // it knows "this" / "what am I looking at"
+                    .withEventListener(activityBridge)       // tool_call → tool_result live in the panel
                     .build();
-            log.debug("Built global NavigatorAssistant for session {}", sessionId);
+            log.debug("Built global app assistant (tools + activity + events) for session {}", sessionId);
         }
         return assistant;
     }

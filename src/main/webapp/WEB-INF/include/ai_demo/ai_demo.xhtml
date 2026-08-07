@@ -18,6 +18,14 @@
             </p>
    </p:outputPanel>
 
+   <p:outputPanel style="display:block; margin:10px 0; padding:10px; border-left:4px solid #6c8ebf; background:rgba(108,142,191,0.08);">
+      <b>These panels are a GALLERY, not a blueprint.</b> Each one isolates a single EasyAI
+      capability (chat, assistant, RAG, tools, agent, flow) so you can see each API on its own.
+      A real application does <i>not</i> ship one chat box per capability — it uses <b>one</b> chat
+      window (the template's AI panel, top-right) backed by a single assistant that the model routes
+      for you. See the guide chapter <i>"One chat window for your whole app"</i>.
+   </p:outputPanel>
+
 
      <p:accordionPanel >
        <p:tab title="Chat demo">
