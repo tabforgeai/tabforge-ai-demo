@@ -31,6 +31,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * <h2>How the client interprets {@link #type}</h2>
  * <ul>
  *   <li>{@code "assistant_message"} → routed into the chat bubble; uses {@link #text}.</li>
+ *   <li>{@code "suggestion"} → a <b>proactive</b> suggestion the server pushed unprompted; rendered as a
+ *       dismissible chip (not a timeline row). Uses {@link #text} (the sentence the user reads),
+ *       {@link #prompt} (the chat prompt run if accepted), {@link #actionId} and {@link #key}. See
+ *       {@code services.SuggestionAdvisor}.</li>
  *   <li>everything else ({@code "agent_started"}, {@code "tool_call"}, {@code "tool_result"},
  *       {@code "reasoning"}, {@code "agent_finished"}, {@code "error"}, {@code "warning"}) →
  *       a row in the Activity tab, with icon/color chosen from {@link #type}/{@link #status}.</li>
@@ -54,6 +58,14 @@ public class AgentEvent {
     private String details;
     private String text;
     private String timestamp;
+
+    // ── Proactive-suggestion fields (only set on "suggestion" events) ───────────
+    /** Machine name for the kind of suggestion, e.g. {@code "summarize-customer"}. */
+    private String actionId;
+    /** The chat prompt to run verbatim if the user accepts the suggestion. */
+    private String prompt;
+    /** Cooldown/mute key echoed back to the server on accept/dismiss. */
+    private String key;
 
     /** Required by JSON-B. Application code uses the static factories instead. */
     public AgentEvent() {
@@ -162,6 +174,26 @@ public class AgentEvent {
     }
 
     /**
+     * A <b>proactive suggestion</b> the server volunteers over the open SSE channel — rendered as a
+     * dismissible chip in the chat, not a timeline row. The user can accept it (its {@link #prompt} is
+     * injected into the chat) or dismiss it.
+     *
+     * @param actionId machine name for the kind of suggestion (e.g. {@code "summarize-customer"})
+     * @param text     the one-sentence offer the user reads (produced by the LLM phraser)
+     * @param prompt   the chat prompt to run verbatim if the user accepts
+     * @param key      the cooldown/mute key echoed back to the server on accept/dismiss
+     * @return a populated {@code suggestion} event (no status — it is not an activity step)
+     */
+    public static AgentEvent suggestion(String actionId, String text, String prompt, String key) {
+        AgentEvent e = base("suggestion", null);
+        e.actionId = actionId;
+        e.text = text;
+        e.prompt = prompt;
+        e.key = key;
+        return e;
+    }
+
+    /**
      * The operation finished cleanly — the closing Activity row (green).
      *
      * @param agent the source name
@@ -211,4 +243,7 @@ public class AgentEvent {
     public String getDetails()   { return details; }
     public String getText()      { return text; }
     public String getTimestamp() { return timestamp; }
+    public String getActionId()  { return actionId; }
+    public String getPrompt()    { return prompt; }
+    public String getKey()       { return key; }
 }

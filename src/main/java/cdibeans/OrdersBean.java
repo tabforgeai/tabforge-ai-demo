@@ -1,6 +1,5 @@
 package cdibeans;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +19,11 @@ import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import model.DemoOrder;
 import services.OrderActivityService;
+import services.OrderCatalog;
 import services.OrderService;
+import services.SuggestionAdvisor;
 
 /**
  * Backing bean for the <b>"Orders — Ambient Memory"</b> demo tab, the showcase for TabForge's ambient
@@ -74,11 +76,22 @@ public class OrdersBean extends BaseDyntabCdiBean {
     @Inject
     private ActivityStore activityStore;
 
+    /** The single source of truth for the demo's sample orders — shared with the proactive rule. */
+    @Inject
+    private OrderCatalog orderCatalog;
+
+    /**
+     * The proactive-suggestion engine. Opening a row (below) not only records an activity event but also
+     * <em>pokes</em> this advisor, which decides — deterministically — whether the recent pattern of views
+     * is worth an unprompted suggestion in the AI panel.
+     */
+    @Inject
+    private SuggestionAdvisor suggestionAdvisor;
+
     /** The assistant proxy, built once on tab open and wired to read this tab's activity each call. */
     private OrdersAssistant assistant;
 
-    private List<OrderRow> orders;
-    private OrderRow selectedOrder;
+    private DemoOrder selectedOrder;
     private String orderDetail = "";
 
     private final List<String> chatLog = new ArrayList<>();
@@ -97,8 +110,6 @@ public class OrdersBean extends BaseDyntabCdiBean {
     @Override
     protected void accessPointMethod(Map parameters) {
         super.accessPointMethod(parameters);
-
-        this.orders = sampleOrders();
 
         // Scope the ambient context to this user's session and this exact tab. getDynTabId() is the same
         // id the recorder stamps onto events, so the read-side and write-side agree on "this tab".
@@ -128,9 +139,16 @@ public class OrdersBean extends BaseDyntabCdiBean {
      *
      * @param order the order row the user clicked
      */
-    public void openOrder(OrderRow order) {
+    public void openOrder(DemoOrder order) {
         this.selectedOrder = order;
+        // Records the "viewed order" activity event (via @ActivityTracked) BEFORE we return, so the
+        // advisor below sees it when it re-reads the recent timeline.
         this.orderDetail = orderActivityService.viewOrder(order.getId());
+
+        // Proactive hook: let the advisor look at what the user has been viewing and, if a rule fires,
+        // push an unprompted suggestion into the AI panel. The call is fire-and-forget and never throws
+        // — a proactive nicety must never break the click that triggered it.
+        suggestionAdvisor.onOrderViewed(activityRecorder.currentSessionId());
     }
 
     /**
@@ -157,27 +175,18 @@ public class OrdersBean extends BaseDyntabCdiBean {
         }
     }
 
-    /** A few static demo orders so the table has something to click. */
-    private List<OrderRow> sampleOrders() {
-        List<OrderRow> list = new ArrayList<>();
-        list.add(new OrderRow("ORD-001", "Acme Corp", "Shipped", 1299.00));
-        list.add(new OrderRow("ORD-002", "Globex LLC", "Processing", 459.90));
-        list.add(new OrderRow("ORD-003", "Initech", "Pending payment", 88.50));
-        list.add(new OrderRow("ORD-004", "Umbrella Inc", "Delivered", 2750.00));
-        return list;
-    }
-
     // --- getters / setters ---------------------------------------------------
 
-    public List<OrderRow> getOrders() {
-        return orders;
+    /** @return the demo orders from the shared {@link OrderCatalog} (the table's data). */
+    public List<DemoOrder> getOrders() {
+        return orderCatalog.all();
     }
 
-    public OrderRow getSelectedOrder() {
+    public DemoOrder getSelectedOrder() {
         return selectedOrder;
     }
 
-    public void setSelectedOrder(OrderRow selectedOrder) {
+    public void setSelectedOrder(DemoOrder selectedOrder) {
         this.selectedOrder = selectedOrder;
     }
 
@@ -195,43 +204,5 @@ public class OrdersBean extends BaseDyntabCdiBean {
 
     public void setUserMessage(String userMessage) {
         this.userMessage = userMessage;
-    }
-
-    /**
-     * A minimal order row for the demo table.
-     *
-     * <p>Kept as a tiny nested value holder (rather than reusing the unrelated {@code model.Order}) so
-     * the demo stays self-contained and the {@code id} is a clean order code the AI can act on.</p>
-     */
-    public static class OrderRow implements Serializable {
-        private static final long serialVersionUID = 1L;
-
-        private final String id;
-        private final String customer;
-        private final String status;
-        private final double total;
-
-        public OrderRow(String id, String customer, String status, double total) {
-            this.id = id;
-            this.customer = customer;
-            this.status = status;
-            this.total = total;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public String getCustomer() {
-            return customer;
-        }
-
-        public String getStatus() {
-            return status;
-        }
-
-        public double getTotal() {
-            return total;
-        }
     }
 }

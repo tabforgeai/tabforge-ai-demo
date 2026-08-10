@@ -39,6 +39,60 @@
     <!-- Recolors stock PrimeFaces components for dark/dim modes; no-op in light -->
     <h:outputStylesheet name="css/layout-dark-primefaces.css" library="pf-template" />
 
+    <!--
+        Proactive-suggestion chip styling. A suggestion is pushed by the server over the same SSE
+        stream the panel already listens on (type:"suggestion") and rendered here as a small, dismissible
+        card in the chat — visibly different from a normal chat bubble. See the 'suggestion' handler and
+        api.AgentEvent / services.SuggestionAdvisor.
+    -->
+    <style>
+        .ai-suggestion {
+            display: flex;
+            gap: .6rem;
+            align-items: flex-start;
+            margin: .5rem 0;
+            padding: .7rem .8rem;
+            border: 1px solid var(--primary-color, #6366f1);
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--primary-color, #6366f1) 8%, transparent);
+            animation: ai-suggestion-in .18s ease-out;
+        }
+        @keyframes ai-suggestion-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .ai-suggestion-icon {
+            color: var(--primary-color, #6366f1);
+            font-size: 1.05rem;
+            line-height: 1.4;
+            flex: 0 0 auto;
+        }
+        .ai-suggestion-body { flex: 1 1 auto; min-width: 0; }
+        .ai-suggestion-text {
+            font-size: .9rem;
+            line-height: 1.4;
+            color: var(--text-color, #1f2937);
+            margin-bottom: .55rem;
+        }
+        .ai-suggestion-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+        .ai-suggestion-actions button {
+            border: none;
+            border-radius: 8px;
+            padding: .32rem .7rem;
+            font-size: .82rem;
+            cursor: pointer;
+        }
+        .ai-suggestion-accept {
+            background: var(--primary-color, #6366f1);
+            color: var(--primary-color-text, #fff);
+        }
+        .ai-suggestion-dismiss {
+            background: transparent;
+            color: var(--text-color-secondary, #6b7280);
+        }
+        .ai-suggestion-dismiss:hover { text-decoration: underline; }
+    </style>
+
     <!-- JS with defer — does not block HTML parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer="defer"></script>
     <h:outputScript name="js/layout.js" library="pf-template" pt:defer="true" />
@@ -330,8 +384,11 @@
             // (1) Open the always-on event feed; auto-reconnects if it drops.
             PFTemplate.AgentTransport.connectSSE('#{request.contextPath}/api/ai/stream');
 
-            // Auto-open the Activity tab the moment events start arriving.
-            PFTemplate.activityPanel.configure({ agentName: 'TabForge AI', autoSwitchTab: true });
+            // Chat-first panel: incoming agent activity bumps the Activity badge but does NOT
+            // yank the user off the Chat tab. This keeps the conversation — and proactive
+            // suggestion chips — in view while tool calls narrate in the background (open the
+            // Activity tab to watch them). Set autoSwitchTab:true to auto-jump to Activity instead.
+            PFTemplate.activityPanel.configure({ agentName: 'TabForge AI', autoSwitchTab: false });
 
             // (2) Wire the chat input to the global assistant. The panel emits the typed
             // text; we POST it and stream the reply back into the same chat.
@@ -345,6 +402,86 @@
                 .then(function (r) { return r.text(); })
                 .then(function (reply) { PFTemplate.aiPanel.streamAssistant(reply); })
                 .catch(function (e) { PFTemplate.aiPanel.streamAssistant('Error: ' + e); });
+            });
+
+            // (3) PROACTIVE suggestions (server speaks first). The backend pushes a
+            // {type:"suggestion"} event over the SAME open SSE stream when a deterministic
+            // rule fires (see services.SuggestionAdvisor). We render it as a small, dismissible
+            // chip in the chat. Accepting simply injects its ready-made prompt into the normal
+            // chat input and sends it — reusing the exact path above; no new execution route.
+            var ctxPath = '#{request.contextPath}';
+
+            function decideSuggestion(key, decision) {
+                if (!key) return;
+                fetch(ctxPath + '/api/ai/suggestion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: key, decision: decision })
+                }).catch(function () { /* bookkeeping only — safe to ignore */ });
+            }
+
+            PFTemplate.AgentEventBus.on('suggestion', function (evt) {
+                if (!evt || !evt.text) return;
+
+                var messages = document.getElementById('ai-panel-messages');
+                if (!messages) return;
+
+                // Make sure the panel is open and on the Chat tab so the offer is actually seen.
+                document.querySelector('.layout-wrapper')?.classList.add('ai-panel-open');
+                PFTemplate.aiPanel.switchTab('chat');
+                var emptyEl = document.getElementById('ai-panel-empty');
+                if (emptyEl) emptyEl.style.display = 'none';
+
+                var chip = document.createElement('div');
+                chip.className = 'ai-suggestion';
+                if (evt.key) chip.dataset.key = evt.key;
+
+                var icon = document.createElement('div');
+                icon.className = 'ai-suggestion-icon';
+                icon.innerHTML = '<i class="pi pi-sparkles"></i>';
+
+                var body = document.createElement('div');
+                body.className = 'ai-suggestion-body';
+
+                var text = document.createElement('div');
+                text.className = 'ai-suggestion-text';
+                text.textContent = evt.text;   // textContent = no HTML injection from model output
+
+                var actions = document.createElement('div');
+                actions.className = 'ai-suggestion-actions';
+
+                var accept = document.createElement('button');
+                accept.type = 'button';
+                accept.className = 'ai-suggestion-accept';
+                accept.textContent = 'Yes, please';
+                accept.addEventListener('click', function () {
+                    var input = document.getElementById('ai-panel-input');
+                    if (input &amp;&amp; evt.prompt) {
+                        input.value = evt.prompt;
+                        input.dispatchEvent(new Event('input')); // let it auto-resize
+                        PFTemplate.aiPanel.send();               // reuse the normal send path
+                    }
+                    decideSuggestion(evt.key, 'accept');
+                    chip.remove();
+                });
+
+                var dismiss = document.createElement('button');
+                dismiss.type = 'button';
+                dismiss.className = 'ai-suggestion-dismiss';
+                dismiss.textContent = 'Not now';
+                dismiss.addEventListener('click', function () {
+                    decideSuggestion(evt.key, 'dismiss');
+                    chip.remove();
+                });
+
+                actions.appendChild(accept);
+                actions.appendChild(dismiss);
+                body.appendChild(text);
+                body.appendChild(actions);
+                chip.appendChild(icon);
+                chip.appendChild(body);
+                messages.appendChild(chip);
+                messages.scrollTop = messages.scrollHeight;
             });
         });
     </script>
