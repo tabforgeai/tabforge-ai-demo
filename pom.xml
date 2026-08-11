@@ -58,7 +58,7 @@
   <dependency>
       <groupId>io.github.tabforgeai</groupId>
       <artifactId>tabforge-ai</artifactId>
-      <version>3.0.1</version>
+      <version>3.1.0</version>
   </dependency>
   
    <dependency>
