@@ -60,7 +60,20 @@
       <artifactId>tabforge-ai</artifactId>
       <version>3.1.0</version>
   </dependency>
-  
+
+  <!-- RAG features (PolicyBot / SalesBot use withRAG(...)) need langchain4j-easy-rag:
+       Apache Tika document parsing + the bundled offline embedding model. As of tabforge-ai
+       3.1.0 this is declared <optional> in the library (so it does not bloat chat/tools-only
+       WARs), which means a RAG-using app must add it back explicitly. NOTE the version: easy-rag
+       and milvus are langchain4j "beta" modules with their OWN numbering; the langchain4j-bom
+       1.16.3 that tabforge-ai builds on pins them to 1.16.3-beta26 (NOT 1.16.3). (Milvus is not
+       used in this demo.) -->
+  <dependency>
+      <groupId>dev.langchain4j</groupId>
+      <artifactId>langchain4j-easy-rag</artifactId>
+      <version>1.16.3-beta26</version>
+  </dependency>
+
    <dependency>
       <groupId>jakarta.platform</groupId>
       <artifactId>jakarta.jakartaee-api</artifactId>
