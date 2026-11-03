@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import dyntabs.ai.annotation.EasyTool;
 import jakarta.ejb.Stateless;
+import jakarta.inject.Inject;
 
 /**
  * <b>Deliberately an EJB</b> ({@code @Stateless}), while the other demo services are plain
@@ -28,14 +29,68 @@ import jakarta.ejb.Stateless;
 public class OrderService {
 	private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
-	@EasyTool("Finds an order by its ID and returns its current status")
+	/**
+	 * The demo's single source of truth for orders. An EJB may inject a CDI bean, so this
+	 * {@code @Stateless} tool reads the <em>same</em> ledger the Orders table renders from —
+	 * which is what lets the assistant compare a scanned invoice against the real order total.
+	 */
+	@Inject
+	private OrderCatalog catalog;
+
+	/**
+	 * Look up one order and report the fields the assistant needs to reason and compare.
+	 *
+	 * <p>Previously this returned a canned "shipped, arrives tomorrow" string, so the AI could
+	 * never see an amount. Now it reads {@link OrderCatalog} and returns the customer, status and
+	 * <b>total</b> — so asking "does this invoice match the order?" has a number on both sides.</p>
+	 *
+	 * <p><b>Analogy:</b> before, the clerk recited the same sentence to everyone; now the clerk
+	 * actually pulls the order card and reads you what is on it.</p>
+	 *
+	 * @param orderId the order code (e.g. {@code "ORD-004"})
+	 * @return a one-line fact sheet, or a clear "not found" message the AI can relay
+	 */
+	@EasyTool("Finds an order by its ID and returns its customer, status and total amount")
 	public String findOrder(String orderId) {
-		return "Order " + orderId + ": shipped, arrives tomorrow";
+		return catalog.find(orderId)
+				.map(o -> String.format("Order %s: customer=%s, status=%s, total=%.2f",
+						o.getId(), o.getCustomer(), o.getStatus(), o.getTotal()))
+				.orElse("No order found with id " + orderId);
 	}
 
 	@EasyTool("Cancels an active order")
 	public String cancelOrder(String orderId) {
 		return "Order " + orderId + " has been cancelled";
+	}
+
+	/**
+	 * Open a claim (<i>reklamacija</i>) against an order — the action a proactive "invoice doesn't match
+	 * the order" suggestion carries out when the user accepts it.
+	 *
+	 * <p>This is the far end of the vision "wow": after {@code SuggestionAdvisor} deterministically spots
+	 * that a scanned invoice amount differs from the order total and pushes an Accept/Dismiss chip,
+	 * accepting injects a prompt that lands here as a tool call. The method validates the order exists,
+	 * mints a claim reference, and returns a confirmation sentence the assistant relays back. It changes
+	 * no real state (demo), but it models the "draft/record an action" step cleanly.</p>
+	 *
+	 * <p><b>Analogy:</b> the clerk writes up a complaint slip, stamps it with a reference number, and
+	 * hands you the copy — the paper trail exists even though the warehouse hasn't moved yet.</p>
+	 *
+	 * @param orderId the order the claim is about (e.g. {@code "ORD-004"})
+	 * @param reason  a short human reason (e.g. "invoice €240 higher than order total")
+	 * @return a confirmation with a claim reference, or a clear message if the order is unknown
+	 */
+	@EasyTool("Files a claim (reklamacija) against an order for a stated reason; use when an invoice does not match the order")
+	public String fileClaim(String orderId, String reason) {
+		return catalog.find(orderId)
+				.map(o -> {
+					String claimId = "CLM-" + (Math.abs((orderId + String.valueOf(reason)).hashCode()) % 9000 + 1000);
+					log.info("fileClaim: order={} reason={} -> {}", orderId, reason, claimId);
+					return String.format("Reklamacija %s otvorena za nalog %s (kupac %s, total %.2f). Razlog: %s",
+							claimId, o.getId(), o.getCustomer(), o.getTotal(),
+							(reason == null || reason.isBlank() ? "neslaganje iznosa fakture i naloga" : reason));
+				})
+				.orElse("Ne mogu da otvorim reklamaciju — nalog " + orderId + " ne postoji.");
 	}
 
 	/**

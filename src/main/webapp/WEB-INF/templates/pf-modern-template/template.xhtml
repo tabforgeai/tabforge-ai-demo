@@ -393,6 +393,24 @@
             // (2) Wire the chat input to the global assistant. The panel emits the typed
             // text; we POST it and stream the reply back into the same chat.
             PFTemplate.InputEventBus.on('user_message', function (msg) {
+                // VISION branch (the "wow"): if the user attached an image (📎/🖼 picker, drag-drop,
+                // Ctrl+V, or a phone camera shot), send it as multipart to /api/ai/vision. The server
+                // reads it (STEP 1) and lets the SAME tab-aware assistant reason/act on it (STEP 2).
+                var slike = (msg.files || []).filter(function (f, i) {
+                    return (msg.attachments[i] || {}).type === 'image';
+                });
+                if (slike.length) {
+                    var fd = new FormData();
+                    fd.append('file', slike[0].file);      // native File (camera or file-system), bytes intact
+                    fd.append('text', msg.text || '');     // optional words typed alongside the picture
+                    fetch('#{request.contextPath}/api/ai/vision', { method: 'POST', body: fd })
+                        .then(function (r) { return r.text(); })
+                        .then(function (reply) { PFTemplate.aiPanel.streamAssistant(reply); })
+                        .catch(function (e) { PFTemplate.aiPanel.streamAssistant('Error: ' + e); });
+                    return;
+                }
+
+                // TEXT branch (unchanged): plain chat → /api/ai/chat.
                 if (!msg.text) return;
                 fetch('#{request.contextPath}/api/ai/chat', {
                     method: 'POST',

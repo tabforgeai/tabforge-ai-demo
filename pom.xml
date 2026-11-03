@@ -74,6 +74,21 @@
       <version>1.16.3-beta26</version>
   </dependency>
 
+  <!-- Multimodal "wow" (vision): the official Anthropic Java SDK, pointed at DeepSeek's
+       Anthropic-compatible endpoint (see services.DeepSeekVision). DEMO-ONLY — the tabforge-ai
+       library is untouched; the image→facts step lives beside the app, behind VisionEkstraktor.
+       -client-okhttp is the runtime HTTP client the SDK uses. -->
+  <dependency>
+      <groupId>com.anthropic</groupId>
+      <artifactId>anthropic-java</artifactId>
+      <version>2.54.0</version>
+  </dependency>
+  <dependency>
+      <groupId>com.anthropic</groupId>
+      <artifactId>anthropic-java-client-okhttp</artifactId>
+      <version>2.54.0</version>
+  </dependency>
+
    <dependency>
       <groupId>jakarta.platform</groupId>
       <artifactId>jakarta.jakartaee-api</artifactId>

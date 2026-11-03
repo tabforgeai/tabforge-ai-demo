@@ -14,6 +14,7 @@ import api.AgentEvent;
 import api.AiEventChannel;
 import dyntabs.ai.EasyAI;
 import dyntabs.ai.activity.ActivityStore;
+import dyntabs.ai.activity.EntityRef;
 import dyntabs.ai.activity.UserActivityEvent;
 import interfaces.SuggestionPhraser;
 import jakarta.annotation.Resource;
@@ -21,6 +22,7 @@ import jakarta.enterprise.concurrent.ManagedExecutorService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import model.DemoOrder;
 
 /**
  * The engine that turns a user's recent activity into an unprompted, dismissible suggestion in the AI
@@ -72,6 +74,9 @@ public class SuggestionAdvisor {
     /** After the user dismisses a suggestion, suppress the same key for this much longer. */
     private static final Duration MUTE = Duration.ofMinutes(30);
 
+    /** Amounts within this tolerance (demo's single currency) count as "matching" — no suggestion. */
+    private static final double AMOUNT_EPSILON = 0.01;
+
     /** All detector rules the container found — "add proactivity" = add another {@link SuggestionRule} bean. */
     @Inject
     private Instance<SuggestionRule> rules;
@@ -79,6 +84,10 @@ public class SuggestionAdvisor {
     /** The session-scoped ambient timeline the rules read from. */
     @Inject
     private ActivityStore activityStore;
+
+    /** The single source of truth for orders — used to look up the active order's total for reconciliation. */
+    @Inject
+    private OrderCatalog orderCatalog;
 
     /** The SSE registry used to push the finished suggestion to the user's browser. */
     @Inject
@@ -142,6 +151,69 @@ public class SuggestionAdvisor {
     }
 
     /**
+     * Proactive trigger for the <b>vision</b> channel: an invoice image was just read, and its amount is
+     * handed in here to be reconciled against the order the user is looking at.
+     *
+     * <p>This is the vision counterpart of {@link #onOrderViewed(String)} — the <em>sense</em> is a
+     * scanned document instead of a click, but the rest of the pipeline is identical. The decision stays
+     * deterministic: we resolve the active order from the same ambient timeline ({@link #latestOrderId}),
+     * read its total from {@link OrderCatalog}, and compare. Only on a real mismatch (beyond
+     * {@link #AMOUNT_EPSILON}) do we build a {@code reconcile-invoice} {@link Suggestion} and run the
+     * usual cooldown → phrase → push. The LLM never decides there is a problem; it only phrases one the
+     * arithmetic already found. Accepting the pushed chip injects a prompt that calls
+     * {@code OrderService.fileClaim(...)}.</p>
+     *
+     * <p>Never throws — a proactive nicety must not break the vision reply that triggered it.</p>
+     *
+     * @param sessionId     the user's HTTP session id (scopes the activity read and the SSE push)
+     * @param invoiceAmount the amount extracted from the invoice image (demo's single currency)
+     */
+    public void onInvoiceExtracted(String sessionId, double invoiceAmount) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return;
+        }
+        try {
+            String orderId = latestOrderId(sessionId);
+            if (orderId == null) {
+                log.debug("onInvoiceExtracted: no viewed order in timeline for session {} — nothing to reconcile", sessionId);
+                return;
+            }
+            DemoOrder order = orderCatalog.find(orderId).orElse(null);
+            if (order == null) {
+                return;
+            }
+            double total = order.getTotal();
+            double diff = invoiceAmount - total;
+            if (Math.abs(diff) <= AMOUNT_EPSILON) {
+                log.debug("onInvoiceExtracted: invoice {} matches order {} ({}) — no suggestion", invoiceAmount, orderId, total);
+                return;
+            }
+
+            String key = "reconcile-invoice:" + orderId;
+            String sk = suppressKey(sessionId, key);
+            if (isSuppressed(sk)) {
+                log.debug("Reconcile suggestion for {} suppressed (cooldown/mute) — not firing", orderId);
+                return;
+            }
+            suppress(sk, COOLDOWN); // reserve before async phrasing, so we cannot double-fire
+
+            String promptForAccept = String.format(
+                    "Otvori reklamaciju za nalog %s zbog neslaganja iznosa: faktura %.2f naspram naloga %.2f (razlika %.2f).",
+                    orderId, invoiceAmount, total, diff);
+            String phrasingBrief = String.format(
+                    "Priložena faktura (%.2f) ne poklapa se sa iznosom naloga %s (%.2f); razlika je %.2f. "
+                  + "Ponudi korisniku, jednom kratkom rečenicom, da otvori reklamaciju.",
+                    invoiceAmount, orderId, total, diff);
+
+            Suggestion s = new Suggestion("reconcile-invoice", key, promptForAccept, phrasingBrief);
+            dispatch(sessionId, s, phraser());
+            log.debug("Reconcile suggestion queued for order {} (invoice {} vs total {})", orderId, invoiceAmount, total);
+        } catch (RuntimeException ex) {
+            log.warn("SuggestionAdvisor.onInvoiceExtracted failed for session {}", sessionId, ex);
+        }
+    }
+
+    /**
      * Record that the user accepted a suggestion — restart its cooldown so it does not immediately reappear.
      *
      * <p>The actual work of an accepted suggestion happens client-side (its prompt is injected into the
@@ -190,6 +262,28 @@ public class SuggestionAdvisor {
                 log.warn("Failed to phrase/push suggestion '{}'", s.key(), ex);
             }
         });
+    }
+
+    /**
+     * The id of the order the user is currently looking at, read from the same ambient timeline the
+     * assistant uses to resolve "this order". Scans newest-first for the most recent {@code order}
+     * business action (recorded by {@code OrderActivityService.viewOrder} via {@code @ActivityTracked}).
+     *
+     * @param sessionId the session whose timeline to read
+     * @return the active order id (e.g. {@code "ORD-004"}), or {@code null} if none has been viewed
+     */
+    private String latestOrderId(String sessionId) {
+        List<UserActivityEvent> recent = activityStore.recent(sessionId, null, 50);
+        for (int i = recent.size() - 1; i >= 0; i--) {
+            UserActivityEvent e = recent.get(i);
+            if (e.type() == UserActivityEvent.Type.BUSINESS_ACTION) {
+                EntityRef ref = e.primaryEntity();
+                if (ref != null && "order".equals(ref.type())) {
+                    return ref.id();
+                }
+            }
+        }
+        return null;
     }
 
     private boolean isSuppressed(String key) {

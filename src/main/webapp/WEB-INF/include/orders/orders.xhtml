@@ -8,6 +8,65 @@
 
    <ui:define name="mainContent">
 
+      <!-- ===================================================================================
+           VISION "WOW" — what to set up on the app server BEFORE trying it
+
+           The vision demo (attach an invoice image in the AI panel → DeepSeek reads it →
+           this tab's assistant compares the amount with the open order) needs TWO things.
+           NOTE: unlike the Groq reminder on the AI Demo tab, you do NOT need to split and
+           import a per-host certificate by hand — the TLS truststore is opened in CODE
+           (services.DeepSeekVision builds its own trust manager + SSL socket factory, which
+           is what the Anthropic OkHttp client fails to do on GlassFish/Payara).
+
+           1) DEEPSEEK_API_KEY must be set. Resolved (first wins) from: OS/server env var →
+              JVM -D system property → easyai.properties on the classpath. Easiest for the
+              demo: add  DEEPSEEK_API_KEY=sk-...  to src/main/resources/easyai.properties.
+              (Optional overrides: DEEPSEEK_BASE_URL, DEEPSEEK_VISION_MODEL=deepseek-flash.)
+              The key must NEVER be committed to git.
+
+           2) The app-server truststore must contain the PUBLIC CA roots, so DeepSeek's TLS
+              certificate validates. GlassFish/Payara ship config/cacerts.p12 with only their
+              own internal certs. Do a ONE-TIME bulk import of the JDK's roots (one command,
+              no per-certificate splitting). Both stores are PKCS12, default password changeit;
+              find the active one via System.getProperty("javax.net.ssl.trustStore"):
+
+                keytool -importkeystore ^
+                  -srckeystore  "%JAVA_HOME%\lib\security\cacerts" -srcstorepass changeit -srcstoretype PKCS12 ^
+                  -destkeystore "<server>\domains\domain1\config\cacerts.p12" -deststorepass changeit -deststoretype PKCS12 ^
+                  -noprompt
+
+              Back up cacerts.p12 first; restart the domain after. (Alternatively, set the JVM
+              option -Djavax.net.ssl.trustStorePassword=changeit and skip the code-side reader.)
+           ==================================================================================== -->
+      <p:outputPanel>
+         <h4>Vision demo — app-server setup (read before trying)</h4>
+         <p>
+            Attach an invoice image in the AI panel and ask
+            <b>"compare this invoice with the open order"</b>. Two prerequisites:
+         </p>
+         <p>
+            <b>1.</b> Set <code>DEEPSEEK_API_KEY</code> — env var, JVM <code>-D</code>, or a line in
+            <code>easyai.properties</code> (<code>DEEPSEEK_API_KEY=sk-...</code>). Never commit it.
+         </p>
+         <p>
+            <b>2.</b> Make sure the app-server truststore has the public CA roots (GlassFish ships only
+            internal ones), so DeepSeek's HTTPS cert validates. One-time bulk import — no per-certificate
+            splitting needed, because the TLS store is opened in code (<code>services.DeepSeekVision</code>):
+         </p>
+         <p>
+            <code>keytool -importkeystore -srckeystore "%JAVA_HOME%\lib\security\cacerts" -srcstorepass changeit
+            -srcstoretype PKCS12 -destkeystore "&lt;server&gt;\domains\domain1\config\cacerts.p12"
+            -deststorepass changeit -deststoretype PKCS12 -noprompt</code>
+         </p>
+         <p style="color:#888;">
+            Find the active truststore via
+            <code>System.getProperty("javax.net.ssl.trustStore")</code>; back it up first and restart the
+            domain after. (The Groq tab needed a manual per-host cert import — this does not.)
+         </p>
+      </p:outputPanel>
+
+      <p:spacer height="10" />
+
       <p:outputPanel>
          <h5>Ambient Activity Memory — deixis demo</h5>
          <p>
