@@ -114,6 +114,10 @@ public class EasyAiActivityBridge implements EasyAIListener {
             case FLOW      -> "Flow";
             case INDEXER   -> "Indexer";
             case EXTRACT   -> "Extractor";
+            // Deliberate default: EasyAI may add capabilities (a VOICE source, for example), and a
+            // library gaining an enum constant must not break this app's compile. New sources show
+            // their raw name in the timeline until a nicer label is added here.
+            default        -> source.name();
         };
     }
 }
