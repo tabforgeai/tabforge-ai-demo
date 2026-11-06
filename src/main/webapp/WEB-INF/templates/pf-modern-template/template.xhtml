@@ -231,6 +231,18 @@
                                         aria-label="Voice input">
                                     <i class="pi pi-microphone" />
                                 </button>
+                                <!-- Speak-answers-aloud toggle (TTS). It also carries the
+                                     "ai-panel-voice" class purely to borrow that rule's pulsing
+                                     "busy" style while talking, so the shared layout.css stays
+                                     untouched (it is a byte-identical asset across template copies). -->
+                                <button class="ai-dock-btn ai-panel-voice ai-panel-speak"
+                                        type="button"
+                                        id="ai-panel-speak-btn"
+                                        title="Speak answers aloud"
+                                        aria-label="Speak answers aloud"
+                                        aria-pressed="true">
+                                    <i class="pi pi-volume-up" />
+                                </button>
                             </div>
 
                             <button class="ai-panel-send"
@@ -438,6 +450,154 @@
                 }).catch(function () { /* bookkeeping only — safe to ignore */ });
             }
 
+            // -----------------------------------------------------------------------------------
+            // (4) VOICE channel, OUTBOUND half (TTS) — the assistant SPEAKS its answer.
+            // (Defined here, before the suggestion handler below, because that handler speaks too.)
+            //
+            // The cheap half of voice: the browser's own Web Speech synthesis reads the text aloud,
+            // so no audio ever has to travel back from the server (no provider, no key, no cost).
+            //
+            // Three rules keep a talking app from becoming an annoying app:
+            //   1. It speaks only once "armed" — i.e. after you have actually spoken to it. Typed
+            //      turns stay silent, so the app never talks at someone who never asked it to.
+            //   2. Once armed, a PROACTIVE suggestion is spoken too. That is the fusion payoff of
+            //      this whole design: the assistant literally speaks first, unprompted — while the
+            //      decision to speak at all still comes from a deterministic rule on the server.
+            //   3. 🔊 in the input dock mutes it, and pressing 🎤 cuts it off mid-sentence (barge-in),
+            //      because the one thing worse than an app that talks is one you cannot interrupt.
+            //
+            // Markdown is stripped before speaking: "**Order ORD-004**" must be heard as the words,
+            // not as "asterisk asterisk Order". Language is guessed per answer (we are bilingual).
+            //
+            // Analogy: a colleague who reads a reply out to you *because you asked by voice* — and
+            // who stops the instant you open your mouth.
+            // -----------------------------------------------------------------------------------
+            var aiVoiceOut = (function () {
+                var synth = window.speechSynthesis || null;
+                var enabled = true;    // 🔊 on/off, user controlled
+                var armed = false;     // flips true on the first spoken turn
+                var btn = null;
+
+                // getVoices() is populated asynchronously; touching it early warms the list so the
+                // first answer already has a real voice to choose from.
+                if (synth) { try { synth.getVoices(); } catch (e) { /* ignore */ } }
+
+                /** Turn Markdown into speakable prose (drop code, tables, markers, emoji). */
+                function plain(md) {
+                    return String(md == null ? '' : md)
+                        .replace(/```[\s\S]*?```/g, ' ')          // fenced code: never read code aloud
+                        .replace(/`([^`]*)`/g, '$1')              // inline code → bare words
+                        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')    // images
+                        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')  // links → keep the label, drop the URL
+                        // NOTE: the hash is wrapped in a character class on purpose. A bare hash
+                        // followed by a brace starts an EL expression as far as Facelets is
+                        // concerned — even inside a JS comment — and fails the page with an EL
+                        // ParseException. The character class breaks that two-character sequence.
+                        .replace(/^\s{0,3}[#]{1,6}\s+/gm, '')     // headings
+                        .replace(/^\s*[-*+]\s+/gm, '')            // bullet markers
+                        .replace(/^\s*\d+[.)]\s+/gm, '')          // numbered-list markers
+                        .replace(/^\s*\|.*$/gm, ' ')              // table rows are unlistenable
+                        .replace(/\*\*|__|~~|\*|_/g, '')          // emphasis
+                        .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                }
+
+                /** Guess the answer's language so a Serbian reply is not read by an English voice. */
+                function langFor(text) {
+                    var serbian = /[čćžšđČĆŽŠĐ]/.test(text)
+                            || /\b(nalog\w*|iznos\w*|faktur\w*|reklamacij\w*|kupac|porudžbin\w*|isporuk\w*)\b/i.test(text);
+                    return serbian ? 'sr-RS' : 'en-US';
+                }
+
+                /** Best installed voice for that language; null → let the browser decide from u.lang. */
+                function voiceFor(lang) {
+                    var voices = [];
+                    try { voices = synth.getVoices() || []; } catch (e) { voices = []; }
+                    var head = lang.slice(0, 2).toLowerCase();
+                    // Serbian voices are rarely installed on Windows; Croatian/Bosnian read it well.
+                    var family = head === 'sr' ? ['sr', 'hr', 'bs', 'sh'] : [head];
+                    var found = null;
+                    family.some(function (code) {
+                        found = voices.filter(function (v) {
+                            return (v.lang || '').toLowerCase().replace('_', '-').indexOf(code) === 0;
+                        })[0] || null;
+                        return !!found;
+                    });
+                    return found;
+                }
+
+                /** Split into sentence-sized utterances: long ones get truncated by some browsers,
+                 *  and short ones make a barge-in stop feel instant. */
+                function pieces(text) {
+                    var raw = text.match(/[^.!?…]+[.!?…]*\s*/g) || [text];
+                    var out = [], buf = '';
+                    raw.forEach(function (s) {
+                        if (buf &amp;&amp; (buf.length + s.length) > 180) { out.push(buf.trim()); buf = ''; }
+                        buf += s;
+                    });
+                    if (buf.trim()) out.push(buf.trim());
+                    return out;
+                }
+
+                function setBusy(on) { if (btn) btn.classList.toggle('ai-voice-active', on); }
+
+                /** Cut off whatever is being said (and whatever is queued). */
+                function stop() {
+                    if (!synth) return;
+                    try { synth.cancel(); } catch (e) { /* ignore */ }
+                    setBusy(false);
+                }
+
+                /** Say one answer out loud. Silent if unsupported or muted. */
+                function speak(text) {
+                    if (!synth || !enabled) return;
+                    var t = plain(text);
+                    if (!t) return;
+                    stop();                                 // one voice at a time
+                    var lang = langFor(t);
+                    var voice = voiceFor(lang);
+                    var parts = pieces(t);
+                    parts.forEach(function (part, idx) {
+                        var u = new SpeechSynthesisUtterance(part);
+                        u.lang = lang;
+                        if (voice) u.voice = voice;
+                        if (idx === 0) { u.onstart = function () { setBusy(true); }; }
+                        if (idx === parts.length - 1) {
+                            u.onend = function () { setBusy(false); };
+                            u.onerror = function () { setBusy(false); };
+                        }
+                        synth.speak(u);
+                    });
+                }
+
+                // The 🔊 dock toggle. Muting also stops the sentence in progress — a mute button
+                // that lets the current sentence finish is not a mute button.
+                btn = document.getElementById('ai-panel-speak-btn');
+                if (btn &amp;&amp; !synth) {
+                    btn.style.display = 'none';             // no synthesis here → hide a dead control
+                } else if (btn) {
+                    btn.addEventListener('click', function () {
+                        enabled = !enabled;
+                        btn.setAttribute('aria-pressed', String(enabled));
+                        btn.title = enabled ? 'Speak answers aloud' : 'Answers are muted';
+                        btn.style.opacity = enabled ? '' : '0.45';
+                        var i = btn.querySelector('i');
+                        if (i) i.className = enabled ? 'pi pi-volume-up' : 'pi pi-volume-off';
+                        if (!enabled) stop();
+                    });
+                }
+
+                return {
+                    speak: speak,
+                    stop: stop,
+                    /** Called after a spoken turn: from now on this session may be talked to. */
+                    arm: function () { armed = true; },
+                    /** True when an unprompted (proactive) line may be spoken. */
+                    isArmed: function () { return armed &amp;&amp; enabled &amp;&amp; !!synth; }
+                };
+            })();
+
             PFTemplate.AgentEventBus.on('suggestion', function (evt) {
                 if (!evt || !evt.text) return;
 
@@ -500,7 +660,81 @@
                 chip.appendChild(body);
                 messages.appendChild(chip);
                 messages.scrollTop = messages.scrollHeight;
+
+                // The assistant speaks FIRST — but only if this session is already a voice session.
+                // A deterministic server rule decided there was something to say; we only decide
+                // whether the user is in a mode where hearing it is welcome.
+                if (aiVoiceOut.isArmed()) aiVoiceOut.speak(evt.text);
             });
+
+            // (5) VOICE channel, INBOUND half (speech in). PRIMARY: capture the mic with MediaRecorder and POST the
+            // audio to /api/ai/voice, where Groq Whisper transcribes it and the SAME tab-aware assistant
+            // answers — a spoken message behaves exactly like a typed one. We render the transcript as the
+            // user bubble and the answer as the assistant bubble. FALLBACK: if MediaRecorder is missing we
+            // leave layout.js's browser Web Speech wiring (it fills the textarea for a manual send). The
+            // setTimeout defers us until AFTER layout.js bound its handler, which we then replace by
+            // cloning the button (demo-only wiring; layout.js, a shared asset, is untouched).
+            setTimeout(function () {
+                var btn = document.getElementById('ai-panel-voice-btn');
+                if (!btn) return;
+                var canRecord = navigator.mediaDevices
+                        &amp;&amp; typeof navigator.mediaDevices.getUserMedia === 'function'
+                        &amp;&amp; window.MediaRecorder;
+                if (!canRecord) return; // keep layout.js browser Web Speech fallback as-is
+
+                var voiceBtn = btn.cloneNode(true);     // cloning drops layout.js's click listener
+                btn.parentNode.replaceChild(voiceBtn, btn);
+                // layout.js hides this button when the browser has no SpeechRecognition (Firefox).
+                // We do not depend on it — our capture path is MediaRecorder — so keep it visible.
+                voiceBtn.style.display = '';
+
+                var recorder = null, chunks = [], stream = null;
+                function setActive(on) { voiceBtn.classList.toggle('ai-voice-active', on); }
+                function stopStream() {
+                    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+                }
+                function sendAudio(blob) {
+                    var fd = new FormData();
+                    fd.append('audio', blob, 'audio.webm');
+                    document.querySelector('.layout-wrapper')?.classList.add('ai-panel-open');
+                    PFTemplate.aiPanel.switchTab('chat');
+                    var emptyEl = document.getElementById('ai-panel-empty');
+                    if (emptyEl) emptyEl.style.display = 'none';
+                    fetch('#{request.contextPath}/api/ai/voice', { method: 'POST', body: fd })
+                        .then(function (r) { return r.json(); })
+                        .then(function (res) {
+                            if (res.transcript) PFTemplate.aiPanel._appendUser(res.transcript);
+                            var answer = res.answer || '(prazan odgovor)';
+                            PFTemplate.aiPanel.streamAssistant(answer);
+                            // Spoken in → spoken out. This is also what ARMS the voice session,
+                            // which is what later lets a proactive suggestion speak on its own.
+                            aiVoiceOut.arm();
+                            aiVoiceOut.speak(answer);
+                        })
+                        .catch(function (e) { PFTemplate.aiPanel.streamAssistant('Error: ' + e); });
+                }
+                voiceBtn.addEventListener('click', function () {
+                    aiVoiceOut.stop();   // barge-in: talking to it always wins over it talking
+                    if (recorder &amp;&amp; recorder.state === 'recording') { recorder.stop(); return; }
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(function (s) {
+                            stream = s; chunks = [];
+                            recorder = new MediaRecorder(s);
+                            recorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+                            recorder.onstop = function () {
+                                setActive(false);
+                                stopStream();
+                                if (chunks.length) sendAudio(new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }));
+                            };
+                            recorder.start();
+                            setActive(true);
+                        })
+                        .catch(function (e) {
+                            setActive(false);
+                            PFTemplate.aiPanel.streamAssistant('Ne mogu da pristupim mikrofonu: ' + e);
+                        });
+                });
+            }, 0);
         });
     </script>
 
