@@ -1,136 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
+<!--
+    Login screen, adopted from pf-modern-template.
 
+    Everything visual comes from the template (login.css, the split image/form
+    layout, the theme restored before first paint). Only the WIRING is this
+    application's own:
 
+      * the backing bean is security.LoginBacking - email / password / submit(),
+        which runs a real Jakarta Security authentication, not a demo stub;
+      * ajax="false" is required: submit() ends in an ExternalContext.redirect()
+        and a Faces responseComplete(), neither of which survives an ajax postback;
+      * h:messages keeps showDetail="true", because LoginBacking puts the useful
+        part of a failed login - which credentials to try - in the message DETAIL,
+        and the template's own copy had it switched off;
+      * the logo links to main.xhtml: this demo has no index.xhtml, and an
+        unauthenticated visitor is simply bounced back here by the security
+        constraint.
+-->
 <html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="http://xmlns.jcp.org/jsf/html"
-      xmlns:f="http://xmlns.jcp.org/jsf/core"
-      xmlns:p="http://primefaces.org/ui">
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:pt="jakarta.faces.passthrough"
+      data-theme="#{guestPreferences.theme}">
 
 <h:head>
-    <title>Login</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In &#8212; TabForge AI Demo</title>
 
+    <!-- Restore saved theme before first paint to prevent flash -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('pft-theme');
+            var valid = ['light', 'dark', 'dim'];
+            if (t &amp;&amp; valid.indexOf(t) !== -1) {
+                document.documentElement.dataset.theme = t;
+                if (t === 'dark' || t === 'dim') {
+                    document.documentElement.classList.add('p-dark');
+                }
+            }
+        }());
+    </script>
+
+    <h:outputStylesheet name="css/layout-variables.css" library="pf-template" />
+    <h:outputStylesheet name="css/login.css"            library="pf-template" />
+
+    <!-- Background image URL resolved via JSF resource API -->
     <style>
-        body {
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(135deg, #2c3e50, #4ca1af);
-            font-family: Arial, sans-serif;
-        }
-
-        .login-card {
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-            width: 320px;
-        }
-
-        .login-title {
-            text-align: center;
-            margin-bottom: 25px;
-            font-size: 20px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-
-        .login-field {
-            margin-bottom: 15px;
-            width: 100%;
-        }
-
-        .login-button {
-            width: 100%;
-            margin-top: 10px;
+        .login-image-panel {
+            background-image: url('#{resource["pf-template:images/login_3.png"]}');
         }
     </style>
-
 </h:head>
 
-<h:body>
+<h:body styleClass="login-body">
 
-    <h:form>
+    <div class="login-container">
 
-        <div class="login-card">
-
-            <div class="login-title">
-                Application Login
+        <!-- Left panel: background image with overlay quote -->
+        <div class="login-image-panel" aria-hidden="true">
+            <div class="login-image-overlay">
+                <div class="login-image-quote">
+                    <p class="login-quote-text">Modern enterprise UI,<br />powered by PrimeFaces.</p>
+                    <p class="login-quote-sub">Jakarta EE 11 &#183; Java 21 &#183; Open Source</p>
+                </div>
             </div>
-
-            <p:messages showDetail="true" closable="true"/>
-
-            <p:inputText id="username"
-                         placeholder="admin@mail.com" value="#{loginBacking.email}"
-                         required="true"
-                         requiredMessage="Username is required"
-                         styleClass="login-field" />
-                         
-             <p:password id="password" placeholder="ADMIN123" value="#{loginBacking.password}" required="true" requiredMessage="Password is required"
-                         styleClass="login-field"/>
-
-
-            <p:commandButton value="Login"  process="@form"   action="#{loginBacking.submit}"
-                             update="@form"  ajax="false"
-                             styleClass="login-button" />
-
         </div>
 
-    </h:form>
+        <!-- Right panel: login form -->
+        <div class="login-form-panel">
+            <div class="login-card">
+
+                <a href="#{request.contextPath}/main.xhtml" class="login-logo">
+                    <h:graphicImage library="pf-template" name="images/logo.png"
+                                    styleClass="login-logo-img" alt="Logo" />
+                    <span class="login-logo-text">PF Modern</span>
+                </a>
+
+                <h1 class="login-title">Welcome back</h1>
+                <p class="login-subtitle">Sign in to your account to continue.</p>
+
+                <h:form id="loginForm" styleClass="login-form">
+
+                    <!-- showDetail is ON: LoginBacking puts the credentials hint in the detail -->
+                    <h:messages layout="list"
+                                styleClass="login-messages"
+                                errorClass="login-error-msg"
+                                showSummary="true"
+                                showDetail="true" />
+
+                    <div class="login-field">
+                        <label for="loginForm:email" class="login-label">Email</label>
+                        <h:inputText id="email"
+                                     value="#{loginBacking.email}"
+                                     styleClass="login-input"
+                                     pt:placeholder="admin@mail.com"
+                                     pt:autocomplete="username"
+                                     required="true"
+                                     requiredMessage="Email is required." />
+                    </div>
+
+                    <div class="login-field">
+                        <label for="loginForm:password" class="login-label">Password</label>
+                        <h:inputSecret id="password"
+                                       value="#{loginBacking.password}"
+                                       styleClass="login-input"
+                                       pt:placeholder="ADMIN123"
+                                       pt:autocomplete="current-password"
+                                       required="true"
+                                       requiredMessage="Password is required." />
+                    </div>
+
+                    <div class="login-options">
+                        <label class="login-remember">
+                            <input type="checkbox" class="login-checkbox" />
+                            <span>Remember me</span>
+                        </label>
+                        <a href="#" class="login-forgot">Forgot password?</a>
+                    </div>
+
+                    <p:commandButton value="Sign In"
+                                     action="#{loginBacking.submit}"
+                                     process="@form"
+                                     styleClass="login-btn"
+                                     icon="pi pi-sign-in"
+                                     iconPos="right"
+                                     ajax="false" />
+
+                    <p class="login-demo-hint">
+                        Demo accounts: <b>admin@mail.com</b> / ADMIN123 &#183;
+                        <b>user@mail.com</b> / USER123
+                    </p>
+
+                </h:form>
+
+                <p class="login-brand">
+                    Powered by
+                    <a href="https://github.com/tabforgeai"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="login-brand-link">Tabforge AI</a>
+                </p>
+
+            </div>
+        </div>
+
+    </div>
 
 </h:body>
 </html>
-
-
-<!-- 
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="http://java.sun.com/jsf/html"
-      xmlns:f="http://java.sun.com/jsf/core"
-      xmlns:ui="http://java.sun.com/jsf/facelets"
-      xmlns:p="http://primefaces.org/ui">
-
-    <h:head>
-        <f:facet name="first">
-            <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
-            <meta name="apple-mobile-web-app-capable" content="yes" />
-        </f:facet>
-        <title>DemoApp - Login</title>
-    </h:head>
-
-    <h:body styleClass="login-body">
-        <div class="login-card">
-            <h1><span><h:outputText value="#{ui_labels.appName}" /></span></h1>
-            <span>Prijava u aplikaciju <br/><h:outputText value="#{ui_labels.appName}" /></span>
-            <h:form id="login">
-              <p:growl id="msgs" showDetail="false" life="3000" autoUpdate="true"/>
-             
-            <div class="form-group">
-                <span>Email</span>
-                <p:inputText placeholder="admin@mail.com" value="#{loginBacking.email}" required="true" />
-            </div>
-            <div class="form-group">
-                <span><h:outputText value="#{ui_labels.password}" /> </span>
-                <p:password placeholder="ADMIN123" value="#{loginBacking.password}" required="true"/>
-            </div>
-            <div class="form-footer">
-                <div class="checkbox">
-                    <span>Remember Me</span>
-                    <p:selectBooleanCheckbox />
-                </div>
-            </div>
-
-            <p:commandButton process="@form"   action="#{loginBacking.submit}" value="#{ui_labels.login}" update="@form"  ajax="false" />
-            
-            <p:messages id="messages" showDetail="true" closable="true">
-              <p:autoUpdate/>
-            </p:messages>
-            
-            </h:form>
-        </div>
-    </h:body>
-
-</html>
- -->

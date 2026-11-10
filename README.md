@@ -50,7 +50,7 @@ Every key is documented, with its default and what inherits from what, in
 mvn clean package
 ```
 
-Deploy `target/tabforge_ai_demo_1.0.war` to your Jakarta EE 11 application server
+Deploy `target/tabforge-ai-demo.war` to your Jakarta EE 11 application server
 (GlassFish 8, Payara 7, WildFly with EE 11 support).
 
 ---

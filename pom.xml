@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.tabforgeai</groupId>
   <artifactId>tabforge-ai-demo</artifactId>
-  <version>1.0.0</version>
+  <version>4.0.0</version>
   <packaging>war</packaging>
   
     <properties>
@@ -11,7 +11,7 @@
     </properties>
     
      <build>
-        <finalName>tabforge_ai_demo_1_1</finalName>
+        <finalName>tabforge-ai-demo</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -58,7 +58,7 @@
   <dependency>
       <groupId>io.github.tabforgeai</groupId>
       <artifactId>tabforge-ai</artifactId>
-      <version>4.0.0-SNAPSHOT</version>
+      <version>4.0.0</version>
   </dependency>
 
   <!-- RAG features (PolicyBot / SalesBot use withRAG(...)) need langchain4j-easy-rag:

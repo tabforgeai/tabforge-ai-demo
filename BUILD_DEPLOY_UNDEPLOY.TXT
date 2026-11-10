@@ -2,15 +2,15 @@
   mvn clean package
 
 -DEPLOY (On GlassFish 8):
- c:\GlassFish_8\bin\asadmin deploy --name tabforge_ai_demo_1_1   c:\Eclipse2025_Workspace\tabforge-ai-demo\target\tabforge_ai_demo_1_1.war
+ c:\GlassFish_8\bin\asadmin deploy --name tabforge-ai-demo   c:\Eclipse2025_Workspace\tabforge-ai-demo\target\tabforge-ai-demo.war
 
 -UNDEPLOY:
-  c:\GlassFish_8\bin\asadmin undeploy tabforge_ai_demo_1_1
+  c:\GlassFish_8\bin\asadmin undeploy tabforge-ai-demo
 
 -REDEPLOY:
-c:\GlassFish_8\bin\asadmin redeploy --name tabforge_ai_demo_1_1  c:\Eclipse2025_Workspace\tabforge-ai-demo\target\tabforge_ai_demo_1_1.war
+c:\GlassFish_8\bin\asadmin redeploy --name tabforge-ai-demo  c:\Eclipse2025_Workspace\tabforge-ai-demo\target\tabforge-ai-demo.war
 
 -ACCESS:
-localhost:8080/tabforge_ai_demo_1_1/login.xhtml
+localhost:8080/tabforge-ai-demo/login.xhtml
   admin@mail.com/ADMIN123
   user@mail.com/USER123
