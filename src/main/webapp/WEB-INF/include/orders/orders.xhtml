@@ -68,6 +68,43 @@
       <p:spacer height="10" />
 
       <p:outputPanel>
+         <h4>Voice demo — how to try it</h4>
+         <p>
+            The microphone is <b>push-to-talk by clicking twice</b>, not by holding. Open the AI panel
+            (the sparkle button, top right), then:
+         </p>
+         <p>
+            <b>1.</b> Click <b>🎤</b> and allow the microphone when the browser asks. The button turns red
+            and pulses while it is recording.<br />
+            <b>2.</b> Say your question — for example <i>"what is the status of order ORD-004?"</i>.<br />
+            <b>3.</b> Click <b>🎤</b> again to stop. That is what sends the recording.
+         </p>
+         <p>
+            You then see your own words as the "you said …" bubble and the answer below it — the same
+            tab-aware assistant that answers typed questions, so it can use the tools of this tab. The
+            answer is also <b>spoken back</b>.
+         </p>
+         <p>
+            <b>🔊</b> next to the microphone mutes and unmutes the spoken answers, and cuts off the
+            sentence in progress. Clicking <b>🎤</b> while it is talking also stops it — you always win.
+         </p>
+         <p style="color:#888;">
+            Two notes. The page must be opened over <code>https://</code> or
+            <code>http://localhost…</code> — browsers only give microphone access in a secure context.
+            And speaking is "armed": the assistant speaks only after you have spoken at least once, so
+            typed turns stay silent. Once armed, a proactive suggestion is read aloud too.
+         </p>
+         <p style="color:#888;">
+            Transcription runs on Groq (<code>easyai.api-key</code>,
+            <code>easyai.stt.model-name=whisper-large-v3</code>); the spoken answer uses OpenAI
+            (<code>easyai.tts.api-key</code>). Without the OpenAI key nothing breaks — it falls back to
+            the browser's own voice.
+         </p>
+      </p:outputPanel>
+
+      <p:spacer height="10" />
+
+      <p:outputPanel>
          <h5>Ambient Activity Memory — deixis demo</h5>
          <p>
             Open an order below (the <i>Open</i> button), then ask the assistant

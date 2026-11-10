@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui"
+      template="/dyntabs/dynTabLayout.xhtml"
+      xmlns:h="http://java.sun.com/jsf/html">
+
+   <ui:define name="mainContent">
+
+      <!-- ===================================================================================
+           EasyAI.decide() — SETUP NOTE
+
+           This tab needs an OPENAI key, and only this tab does. A decision model is a
+           DEDICATED endpoint (POST {baseUrl}/decisions), not a chat completion with an extra
+           parameter, so the OpenAI-compatible CHAT providers this demo otherwise uses do not
+           implement it: Groq and DeepSeek answer 404. Being "OpenAI-compatible" does not help.
+
+           In src/main/resources/easyai.properties:
+
+             easyai.decision.api-key=sk-...
+             easyai.decision.base-url=https://api.openai.com/v1/
+
+           The key must NEVER be committed to git.
+
+           Without it this page still loads and simply shows the library's own error, which
+           names the property to set. That is deliberate: a missing key should read like a
+           configuration note, not a stack trace.
+
+           NOTE ON MARKUP: include pages here do NOT declare their own h:form — the DynTabs
+           layout (dyntabs/mainForm.xhtml) already provides one, and nesting forms is invalid
+           HTML. Bean access goes through #{dynTab.cdiBean...}, which resolves to THIS tab's
+           instance, and ajax updates target a named panel.
+           =================================================================================== -->
+
+      <p:outputPanel styleClass="card" style="margin-bottom:1rem">
+         <h3 style="margin-top:0">Ticket triage — one call, three measurements</h3>
+         <p style="margin:0 0 .5rem 0">
+            Routing and triage are usually done with a full chat completion that hands back a
+            <em>word</em>. <code>EasyAI.decide()</code> hands back <strong>numbers</strong>, and asks
+            all three questions in a single small call. The thresholds below are plain Java
+            constants in <code>TriageBean</code> — the model measures, your code decides.
+         </p>
+         <p style="margin:0;opacity:.75;font-size:.85rem">
+            Needs <code>easyai.decision.api-key</code> pointed at OpenAI (see the comment in this
+            page's source). Groq and DeepSeek do not implement the decisions endpoint.
+         </p>
+      </p:outputPanel>
+
+      <p:outputPanel styleClass="card">
+         <p:outputLabel for="ticket" value="Support ticket" />
+         <p:inputTextarea id="ticket" value="#{dynTab.cdiBean.ticketText}" rows="4"
+                          style="width:100%;margin:.4rem 0 .75rem 0" />
+         <p:commandButton value="Triage it" icon="pi pi-bolt"
+                          action="#{dynTab.cdiBean.triage}"
+                          process="@this ticket"
+                          update="triageResult" />
+      </p:outputPanel>
+
+      <p:outputPanel id="triageResult">
+
+         <!-- ── a missing key reads like a note, not a crash ──────────────────────────── -->
+         <p:outputPanel styleClass="card" rendered="#{not empty dynTab.cdiBean.error}"
+                        style="margin-top:1rem;border-left:4px solid #ef4444">
+            <h4 style="margin-top:0">Not configured yet</h4>
+            <p style="margin:0">#{dynTab.cdiBean.error}</p>
+         </p:outputPanel>
+
+         <!-- ── results ───────────────────────────────────────────────────────────────── -->
+         <p:outputPanel styleClass="card" rendered="#{dynTab.cdiBean.answered}" style="margin-top:1rem">
+
+            <!-- urgent: the measurement, the threshold, and the verdict, side by side -->
+            <h4 style="margin-top:0">Is the customer completely blocked?</h4>
+            <div style="position:relative;background:var(--surface-ground);border-radius:6px;height:26px;overflow:hidden">
+               <div style="height:100%;width:#{dynTab.cdiBean.urgentPercent}%;background:var(--primary-color)"></div>
+               <div style="position:absolute;top:0;bottom:0;left:#{dynTab.cdiBean.urgentThresholdPercent}%;width:2px;background:#ef4444"></div>
+            </div>
+            <p style="margin:.4rem 0 1.25rem 0">
+               measured <strong>#{dynTab.cdiBean.urgentPercent}%</strong>,
+               threshold <strong>#{dynTab.cdiBean.urgentThresholdPercent}%</strong> (red line) →
+               <strong>#{dynTab.cdiBean.urgent ? 'YES - page the on-call team' : 'no - normal queue'}</strong>
+            </p>
+
+            <!-- team: per-option probabilities, and the honest "too close to call" -->
+            <h4>Which team should handle it?</h4>
+            <ui:repeat value="#{dynTab.cdiBean.teamBars}" var="bar">
+               <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem">
+                  <span style="width:5.5rem;font-size:.85rem">#{bar.label}</span>
+                  <div style="flex:1;background:var(--surface-ground);border-radius:6px;height:18px;overflow:hidden">
+                     <div style="height:100%;width:#{bar.percent}%;background:#{bar.winner ? 'var(--primary-color)' : 'var(--surface-border)'}"></div>
+                  </div>
+                  <span style="width:3rem;text-align:right;font-size:.85rem">#{bar.percent}%</span>
+               </div>
+            </ui:repeat>
+            <p style="margin:.4rem 0 1.25rem 0">
+               <h:outputText rendered="#{dynTab.cdiBean.tooCloseToCall}"
+                             value="Top two are too close to call - send this one to a human."
+                             style="color:#ef4444;font-weight:600" />
+               <h:outputText rendered="#{not dynTab.cdiBean.tooCloseToCall}"
+                             value="Routing to: #{dynTab.cdiBean.team}" />
+            </p>
+
+            <!-- severity: the in-between value kept, not rounded away -->
+            <h4>How severe is the business impact?</h4>
+            <div style="background:var(--surface-ground);border-radius:6px;height:18px;overflow:hidden">
+               <div style="height:100%;width:#{dynTab.cdiBean.severityPercent}%;background:var(--primary-color)"></div>
+            </div>
+            <p style="margin:.4rem 0 1.25rem 0">#{dynTab.cdiBean.severityLabel}</p>
+
+            <!-- the audit line: measurements, not verdicts -->
+            <h4>What goes in the log</h4>
+            <pre style="margin:0;padding:.6rem;background:var(--surface-ground);border-radius:6px;overflow-x:auto">#{dynTab.cdiBean.summary}</pre>
+            <p style="margin:.4rem 0 0 0;opacity:.75;font-size:.85rem">
+               <code>Decisions.summary()</code> records the measurements rather than the verdicts, so a
+               disputed decision can actually be reviewed later.
+            </p>
+         </p:outputPanel>
+      </p:outputPanel>
+
+   </ui:define>
+</ui:composition>

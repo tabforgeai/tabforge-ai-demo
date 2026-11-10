@@ -543,19 +543,22 @@
 
                 function setBusy(on) { if (btn) btn.classList.toggle('ai-voice-active', on); }
 
-                /** Cut off whatever is being said (and whatever is queued). */
+                /** The element playing server-synthesized audio, while it plays. */
+                var serverAudio = null;
+
+                /** Cut off whatever is being said — browser voice and server audio alike. */
                 function stop() {
-                    if (!synth) return;
-                    try { synth.cancel(); } catch (e) { /* ignore */ }
+                    if (synth) { try { synth.cancel(); } catch (e) { /* ignore */ } }
+                    if (serverAudio) {
+                        try { serverAudio.pause(); } catch (e) { /* ignore */ }
+                        serverAudio = null;
+                    }
                     setBusy(false);
                 }
 
-                /** Say one answer out loud. Silent if unsupported or muted. */
-                function speak(text) {
-                    if (!synth || !enabled) return;
-                    var t = plain(text);
-                    if (!t) return;
-                    stop();                                 // one voice at a time
+                /** The free, offline path: the browser's own voice. Also the fallback. */
+                function speakInBrowser(t) {
+                    if (!synth) return;
                     var lang = langFor(t);
                     var voice = voiceFor(lang);
                     var parts = pieces(t);
@@ -572,12 +575,48 @@
                     });
                 }
 
+                /**
+                 * Say one answer out loud. Silent only if muted.
+                 *
+                 * The SERVER is tried first — POST /api/ai/speak, which is one call to
+                 * EasyAI.speak() — because that is the capability this demo exists to show: one
+                 * consistent voice on every browser and device, and audio you could store or replay.
+                 * If it is not configured (no OpenAI key) or the call fails, we fall back to the
+                 * browser's own speechSynthesis, so the demo still talks for anyone who cloned it
+                 * without a key. Degrading quietly beats going silent.
+                 */
+                function speak(text) {
+                    if (!enabled) return;
+                    var t = plain(text);
+                    if (!t) return;
+                    stop();                                 // one voice at a time
+                    setBusy(true);
+                    fetch('#{request.contextPath}/api/ai/speak', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+                        body: t
+                    })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('server TTS HTTP ' + r.status);
+                        return r.blob();
+                    })
+                    .then(function (blob) {
+                        serverAudio = new Audio(URL.createObjectURL(blob));
+                        serverAudio.onended = function () { setBusy(false); };
+                        serverAudio.onerror = function () { setBusy(false); speakInBrowser(t); };
+                        return serverAudio.play();
+                    })
+                    .catch(function () {
+                        setBusy(false);
+                        speakInBrowser(t);
+                    });
+                }
+
                 // The 🔊 dock toggle. Muting also stops the sentence in progress — a mute button
                 // that lets the current sentence finish is not a mute button.
+                // The button stays even without speechSynthesis: the server path may still work.
                 btn = document.getElementById('ai-panel-speak-btn');
-                if (btn &amp;&amp; !synth) {
-                    btn.style.display = 'none';             // no synthesis here → hide a dead control
-                } else if (btn) {
+                if (btn) {
                     btn.addEventListener('click', function () {
                         enabled = !enabled;
                         btn.setAttribute('aria-pressed', String(enabled));
@@ -595,7 +634,7 @@
                     /** Called after a spoken turn: from now on this session may be talked to. */
                     arm: function () { armed = true; },
                     /** True when an unprompted (proactive) line may be spoken. */
-                    isArmed: function () { return armed &amp;&amp; enabled &amp;&amp; !!synth; }
+                    isArmed: function () { return armed &amp;&amp; enabled; }
                 };
             })();
 
